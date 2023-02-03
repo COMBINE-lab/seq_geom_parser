@@ -47,8 +47,8 @@ fn parse_bounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
         Rule::bounded_read_segment => {
             if let Some(len_val) = r.into_inner().next() {
                 return GeomPiece::ReadSeq(GeomLen::Bounded(
-                    len_val.as_str().parse::<u32>().unwrap()
-                        ));
+                    len_val.as_str().parse::<u32>().unwrap(),
+                ));
             }
         }
         _ => unimplemented!(),
@@ -58,19 +58,11 @@ fn parse_bounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
 
 fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
-        Rule::unbounded_umi_segment => {
-            GeomPiece::Umi(GeomLen::Unbounded)
-        }
-        Rule::unbounded_barcode_segment => {
-            GeomPiece::Barcode(GeomLen::Unbounded)
-        }
-        Rule::unbounded_discard_segment => {
-            GeomPiece::Discard(GeomLen::Unbounded)
-        }
-        Rule::unbounded_read_segment => {
-            GeomPiece::ReadSeq(GeomLen::Unbounded)
-        }
-        _ => unimplemented!()
+        Rule::unbounded_umi_segment => GeomPiece::Umi(GeomLen::Unbounded),
+        Rule::unbounded_barcode_segment => GeomPiece::Barcode(GeomLen::Unbounded),
+        Rule::unbounded_discard_segment => GeomPiece::Discard(GeomLen::Unbounded),
+        Rule::unbounded_read_segment => GeomPiece::ReadSeq(GeomLen::Unbounded),
+        _ => unimplemented!(),
     }
 }
 
@@ -216,16 +208,15 @@ fn as_salmon_desc_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String,
     let mut umi_intervals = Vec::<GeomInterval>::new();
     let mut read_intervals = Vec::<GeomInterval>::new();
 
-    let append_interval_bounded =
-        |offset: &mut u32, x: u32, intervals: &mut Vec<GeomInterval>| {
-            let start = *offset + 1;
-            let end = *offset + x;
-            intervals.push(GeomInterval {
-                start: GeomOffset::Bounded(start),
-                end: GeomOffset::Bounded(end),
-            });
-            *offset += x;
-        };
+    let append_interval_bounded = |offset: &mut u32, x: u32, intervals: &mut Vec<GeomInterval>| {
+        let start = *offset + 1;
+        let end = *offset + x;
+        intervals.push(GeomInterval {
+            start: GeomOffset::Bounded(start),
+            end: GeomOffset::Bounded(end),
+        });
+        *offset += x;
+    };
 
     let append_interval_unbounded = |offset: &mut u32, intervals: &mut Vec<GeomInterval>| {
         let start = *offset + 1;
@@ -340,9 +331,9 @@ fn main() {
         */
 
         let read_num = match read_desc.as_rule() {
-            Rule::read_1_desc => { 1 },
-            Rule::read_2_desc => { 2 },
-            _ => { 0 }
+            Rule::read_1_desc => 1,
+            Rule::read_2_desc => 2,
+            _ => 0,
         };
         // at the top-level we have a
         // a read 1 desc followed by a read 2 desc
@@ -368,9 +359,6 @@ fn main() {
         }
     }
 
-    //println!("r1 : {:#?}", read1_desc);
-    //println!("r2 : {:#?}", read2_desc);
-
     let piscem_desc = PiscemGeomDesc::from_geom_pieces(&read1_desc, &read2_desc);
     let salmon_desc = SalmonSeparateGeomDesc::from_geom_pieces(&read1_desc, &read2_desc);
 
@@ -386,5 +374,4 @@ fn main() {
     let mut cmd_salmon = std::process::Command::new("salmon");
     salmon_desc.append(&mut cmd_salmon);
     println!("salmon cmd : {:?}", cmd_salmon);
-
 }
