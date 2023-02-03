@@ -12,9 +12,8 @@ readme = "README.md"
 repository = "https://github.com/COMBINE-lab/seq_geom_parser"
 homepage = "https://github.com/COMBINE-lab/seq_geom_parser"
 include = [
-  "/libradicl/src/*.rs",
   "/src/*.rs",
-  "/lib/*.rs",
+  "/src/lib/*.rs",
   "/src/grammar/frag_geom.pest",
   "/Cargo.toml",
   "/README.md",
