@@ -18,7 +18,7 @@ enum GeomLen {
 #[derive(Debug, Copy, Clone)]
 enum GeomPiece {
     Barcode(GeomLen),
-    UMI(GeomLen),
+    Umi(GeomLen),
     Discard(GeomLen),
     ReadSeq(GeomLen),
 }
@@ -26,52 +26,52 @@ enum GeomPiece {
 fn parse_bounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::bounded_umi_segment => {
-            for len_val in r.into_inner() {
-                return GeomPiece::UMI(GeomLen::Bounded(len_val.as_str().parse::<u32>().unwrap()));
+            if let Some(len_val) = r.into_inner().next() {
+                return GeomPiece::Umi(GeomLen::Bounded(len_val.as_str().parse::<u32>().unwrap()));
             }
         }
         Rule::bounded_barcode_segment => {
-            for len_val in r.into_inner() {
+            if let Some(len_val) = r.into_inner().next() {
                 return GeomPiece::Barcode(GeomLen::Bounded(
                     len_val.as_str().parse::<u32>().unwrap(),
                 ));
             }
         }
         Rule::bounded_discard_segment => {
-            for len_val in r.into_inner() {
+            if let Some(len_val) = r.into_inner().next() {
                 return GeomPiece::Discard(GeomLen::Bounded(
                     len_val.as_str().parse::<u32>().unwrap(),
                 ));
             }
         }
         Rule::bounded_read_segment => {
-            for len_val in r.into_inner() {
+            if let Some(len_val) = r.into_inner().next() {
                 return GeomPiece::ReadSeq(GeomLen::Bounded(
-                    len_val.as_str().parse::<u32>().unwrap(),
-                ));
+                    len_val.as_str().parse::<u32>().unwrap()
+                        ));
             }
         }
         _ => unimplemented!(),
     };
-    return GeomPiece::Discard(GeomLen::Unbounded);
+    GeomPiece::Discard(GeomLen::Unbounded)
 }
 
 fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::unbounded_umi_segment => {
-            return GeomPiece::UMI(GeomLen::Unbounded);
+            GeomPiece::Umi(GeomLen::Unbounded)
         }
         Rule::unbounded_barcode_segment => {
-            return GeomPiece::Barcode(GeomLen::Unbounded);
+            GeomPiece::Barcode(GeomLen::Unbounded)
         }
         Rule::unbounded_discard_segment => {
-            return GeomPiece::Discard(GeomLen::Unbounded);
+            GeomPiece::Discard(GeomLen::Unbounded)
         }
         Rule::unbounded_read_segment => {
-            return GeomPiece::ReadSeq(GeomLen::Unbounded);
+            GeomPiece::ReadSeq(GeomLen::Unbounded)
         }
-        _ => unimplemented!(),
-    };
+        _ => unimplemented!()
+    }
 }
 
 fn parse_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
@@ -87,7 +87,7 @@ fn parse_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
 }
 
 pub trait AppendToCmdArgs {
-    fn append(&self, cmd: &mut std::process::Command) -> ();
+    fn append(&self, cmd: &mut std::process::Command);
 }
 
 #[derive(Debug)]
@@ -106,18 +106,18 @@ struct SalmonSeparateGeomDesc {
 impl AppendToCmdArgs for PiscemGeomDesc {
     fn append(&self, cmd: &mut std::process::Command) {
         let geo_desc = format!("1{}2{}", self.read1_desc, self.read2_desc);
-        cmd.args([&"--geometry", geo_desc.as_str()]);
+        cmd.args(["--geometry", geo_desc.as_str()]);
     }
 }
 
 impl AppendToCmdArgs for SalmonSeparateGeomDesc {
     fn append(&self, cmd: &mut std::process::Command) {
         cmd.args([
-            &"--read-geometry",
+            "--read-geometry",
             self.read_desc.as_str(),
-            &"--bc-geometry",
+            "--bc-geometry",
             self.barcode_desc.as_str(),
-            &"--umi-geometry",
+            "--umi-geometry",
             self.umi_desc.as_str(),
         ]);
     }
@@ -133,7 +133,7 @@ fn as_piscem_geom_desc_single_read(geom_pieces: &[GeomPiece]) -> String {
             GeomPiece::Barcode(GeomLen::Bounded(x)) => {
                 rep += &format!("b[{}]", x);
             }
-            GeomPiece::UMI(GeomLen::Bounded(x)) => {
+            GeomPiece::Umi(GeomLen::Bounded(x)) => {
                 rep += &format!("u[{}]", x);
             }
             GeomPiece::ReadSeq(GeomLen::Bounded(x)) => {
@@ -145,7 +145,7 @@ fn as_piscem_geom_desc_single_read(geom_pieces: &[GeomPiece]) -> String {
             GeomPiece::Barcode(GeomLen::Unbounded) => {
                 rep += "b:";
             }
-            GeomPiece::UMI(GeomLen::Unbounded) => {
+            GeomPiece::Umi(GeomLen::Unbounded) => {
                 rep += "u:";
             }
             GeomPiece::ReadSeq(GeomLen::Unbounded) => {
@@ -198,11 +198,11 @@ impl fmt::Display for GeomInterval {
         // is very similar to `println!`.
         let s = match self.start {
             GeomOffset::Bounded(x) => format!("{}", x),
-            _ => format!("XXX"),
+            _ => "XXX".to_string(),
         };
         let e = match self.end {
             GeomOffset::Bounded(x) => format!("{}", x),
-            GeomOffset::Unbounded => format!("end"),
+            GeomOffset::Unbounded => "end".to_string(),
         };
         write!(f, "{}-{}", s, e)
     }
@@ -217,7 +217,7 @@ fn as_salmon_desc_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String,
     let mut read_intervals = Vec::<GeomInterval>::new();
 
     let append_interval_bounded =
-        |offset: &mut u32, x: u32, intervals: &mut Vec<GeomInterval>| -> () {
+        |offset: &mut u32, x: u32, intervals: &mut Vec<GeomInterval>| {
             let start = *offset + 1;
             let end = *offset + x;
             intervals.push(GeomInterval {
@@ -227,7 +227,7 @@ fn as_salmon_desc_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String,
             *offset += x;
         };
 
-    let append_interval_unbounded = |offset: &mut u32, intervals: &mut Vec<GeomInterval>| -> () {
+    let append_interval_unbounded = |offset: &mut u32, intervals: &mut Vec<GeomInterval>| {
         let start = *offset + 1;
         intervals.push(GeomInterval {
             start: GeomOffset::Bounded(start),
@@ -240,7 +240,7 @@ fn as_salmon_desc_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String,
             GeomPiece::Barcode(GeomLen::Bounded(x)) => {
                 append_interval_bounded(&mut offset, *x, &mut bc_intervals);
             }
-            GeomPiece::UMI(GeomLen::Bounded(x)) => {
+            GeomPiece::Umi(GeomLen::Bounded(x)) => {
                 append_interval_bounded(&mut offset, *x, &mut umi_intervals);
             }
             GeomPiece::ReadSeq(GeomLen::Bounded(x)) => {
@@ -252,7 +252,7 @@ fn as_salmon_desc_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String,
             GeomPiece::Barcode(GeomLen::Unbounded) => {
                 append_interval_unbounded(&mut offset, &mut bc_intervals);
             }
-            GeomPiece::UMI(GeomLen::Unbounded) => {
+            GeomPiece::Umi(GeomLen::Unbounded) => {
                 append_interval_unbounded(&mut offset, &mut umi_intervals);
             }
             GeomPiece::ReadSeq(GeomLen::Unbounded) => {
@@ -291,7 +291,7 @@ impl SalmonSeparateGeomDesc {
         let mut barcode_rep = String::new();
         let mut umi_rep = String::new();
         let mut read_rep = String::new();
-        let (bcp, up, rp) = as_salmon_desc_separate_helper(&geom_pieces_r1);
+        let (bcp, up, rp) = as_salmon_desc_separate_helper(geom_pieces_r1);
         if bcp != "[]" {
             barcode_rep += &format!("1{}", bcp);
         }
@@ -302,7 +302,7 @@ impl SalmonSeparateGeomDesc {
             read_rep += &format!("1{}", rp);
         }
 
-        let (bcp, up, rp) = as_salmon_desc_separate_helper(&geom_pieces_r2);
+        let (bcp, up, rp) = as_salmon_desc_separate_helper(geom_pieces_r2);
         if bcp != "[]" {
             barcode_rep += &format!("2{}", bcp);
         }
@@ -339,15 +339,10 @@ fn main() {
         println!("Text:    {}", read_desc.as_str());
         */
 
-        let read_num: u32;
-        match read_desc.as_rule() {
-            Rule::read_1_desc => {
-                read_num = 1;
-            }
-            Rule::read_2_desc => {
-                read_num = 2;
-            }
-            _ => unreachable!(),
+        let read_num = match read_desc.as_rule() {
+            Rule::read_1_desc => { 1 },
+            Rule::read_2_desc => { 2 },
+            _ => { 0 }
         };
         // at the top-level we have a
         // a read 1 desc followed by a read 2 desc
