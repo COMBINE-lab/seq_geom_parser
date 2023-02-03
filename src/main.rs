@@ -86,7 +86,44 @@ fn parse_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     };
 }
 
-fn as_piscem_str(geom_pieces: &[GeomPiece]) -> String {
+pub trait AppendToCmdArgs {
+    fn append(&self, cmd: &mut std::process::Command) -> ();
+}
+
+#[derive(Debug)]
+struct PiscemGeomDesc {
+    read1_desc: String,
+    read2_desc: String,
+}
+
+#[derive(Debug)]
+struct SalmonSeparateGeomDesc {
+    barcode_desc: String,
+    umi_desc: String,
+    read_desc: String,
+}
+
+impl AppendToCmdArgs for PiscemGeomDesc {
+    fn append(&self, cmd: &mut std::process::Command) {
+        let geo_desc = format!("1{}2{}", self.read1_desc, self.read2_desc);
+        cmd.args([&"--geometry", geo_desc.as_str()]);
+    }
+}
+
+impl AppendToCmdArgs for SalmonSeparateGeomDesc {
+    fn append(&self, cmd: &mut std::process::Command) {
+        cmd.args([
+            &"--read-geometry",
+            self.read_desc.as_str(),
+            &"--bc-geometry",
+            self.barcode_desc.as_str(),
+            &"--umi-geometry",
+            self.umi_desc.as_str(),
+        ]);
+    }
+}
+
+fn as_piscem_geom_desc_single_read(geom_pieces: &[GeomPiece]) -> String {
     let mut rep = String::from("{");
     for gp in geom_pieces {
         match gp {
@@ -118,6 +155,17 @@ fn as_piscem_str(geom_pieces: &[GeomPiece]) -> String {
     }
     rep += "}";
     rep
+}
+
+impl PiscemGeomDesc {
+    fn from_geom_pieces(geom_pieces_r1: &[GeomPiece], geom_pieces_r2: &[GeomPiece]) -> Self {
+        let read1_desc = as_piscem_geom_desc_single_read(geom_pieces_r1);
+        let read2_desc = as_piscem_geom_desc_single_read(geom_pieces_r2);
+        Self {
+            read1_desc,
+            read2_desc,
+        }
+    }
 }
 
 // for the "separate" salmon format, we need to collect
@@ -161,7 +209,7 @@ impl fmt::Display for GeomInterval {
 }
 
 /// should return struct or enum instead
-fn as_salmon_str_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String, String) {
+fn as_salmon_desc_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String, String) {
     let mut offset = 0_u32;
 
     let mut bc_intervals = Vec::<GeomInterval>::new();
@@ -238,33 +286,39 @@ fn as_salmon_str_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String, 
     )
 }
 
-fn as_salmon_str_separate(geom_pieces_r1: &[GeomPiece], geom_pieces_r2: &[GeomPiece]) -> String {
-    let mut barcode_rep = String::from("--barcode_geometry ");
-    let mut umi_rep = String::from("--umi_geometry ");
-    let mut read_rep = String::from("--read_geometry ");
-    let (bcp, up, rp) = as_salmon_str_separate_helper(&geom_pieces_r1);
-    if bcp != "[]" {
-        barcode_rep += &format!("1{}", bcp);
-    }
-    if up != "[]" {
-        umi_rep += &format!("1{}", up);
-    }
-    if rp != "[]" {
-        read_rep += &format!("1{}", rp);
-    }
+impl SalmonSeparateGeomDesc {
+    fn from_geom_pieces(geom_pieces_r1: &[GeomPiece], geom_pieces_r2: &[GeomPiece]) -> Self {
+        let mut barcode_rep = String::new();
+        let mut umi_rep = String::new();
+        let mut read_rep = String::new();
+        let (bcp, up, rp) = as_salmon_desc_separate_helper(&geom_pieces_r1);
+        if bcp != "[]" {
+            barcode_rep += &format!("1{}", bcp);
+        }
+        if up != "[]" {
+            umi_rep += &format!("1{}", up);
+        }
+        if rp != "[]" {
+            read_rep += &format!("1{}", rp);
+        }
 
-    let (bcp, up, rp) = as_salmon_str_separate_helper(&geom_pieces_r2);
-    if bcp != "[]" {
-        barcode_rep += &format!("2{}", bcp);
-    }
-    if up != "[]" {
-        umi_rep += &format!("2{}", up);
-    }
-    if rp != "[]" {
-        read_rep += &format!("2{}", rp);
-    }
+        let (bcp, up, rp) = as_salmon_desc_separate_helper(&geom_pieces_r2);
+        if bcp != "[]" {
+            barcode_rep += &format!("2{}", bcp);
+        }
+        if up != "[]" {
+            umi_rep += &format!("2{}", up);
+        }
+        if rp != "[]" {
+            read_rep += &format!("2{}", rp);
+        }
 
-    format!("{} {} {}", barcode_rep, umi_rep, read_rep)
+        Self {
+            barcode_desc: barcode_rep,
+            umi_desc: umi_rep,
+            read_desc: read_rep,
+        }
+    }
 }
 
 fn main() {
@@ -285,7 +339,7 @@ fn main() {
         println!("Text:    {}", read_desc.as_str());
         */
 
-        let read_num : u32;
+        let read_num: u32;
         match read_desc.as_rule() {
             Rule::read_1_desc => {
                 read_num = 1;
@@ -322,11 +376,20 @@ fn main() {
     //println!("r1 : {:#?}", read1_desc);
     //println!("r2 : {:#?}", read2_desc);
 
-    println!("piscem(r1) : 1{}", as_piscem_str(&read1_desc));
-    println!("piscem(r2) : 2{}", as_piscem_str(&read2_desc));
+    let piscem_desc = PiscemGeomDesc::from_geom_pieces(&read1_desc, &read2_desc);
+    let salmon_desc = SalmonSeparateGeomDesc::from_geom_pieces(&read1_desc, &read2_desc);
 
     println!(
-        "salmon(r1,r2) : {}",
-        as_salmon_str_separate(&read1_desc, &read2_desc)
+        "salmon desc: {:?}\npiscem_desc: {:?}",
+        salmon_desc, piscem_desc
     );
+
+    let mut cmd_piscem = std::process::Command::new("piscem");
+    piscem_desc.append(&mut cmd_piscem);
+    println!("piscem cmd : {:?}", cmd_piscem);
+
+    let mut cmd_salmon = std::process::Command::new("salmon");
+    salmon_desc.append(&mut cmd_salmon);
+    println!("salmon cmd : {:?}", cmd_salmon);
+
 }
