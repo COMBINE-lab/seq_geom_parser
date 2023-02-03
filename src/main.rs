@@ -162,7 +162,7 @@ impl fmt::Display for GeomInterval {
 
 /// should return struct or enum instead
 fn as_salmon_str_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String, String) {
-    let mut offset = 1_u32;
+    let mut offset = 0_u32;
 
     let mut bc_intervals = Vec::<GeomInterval>::new();
     let mut umi_intervals = Vec::<GeomInterval>::new();
@@ -170,7 +170,7 @@ fn as_salmon_str_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String, 
 
     let append_interval_bounded =
         |offset: &mut u32, x: u32, intervals: &mut Vec<GeomInterval>| -> () {
-            let start = offset.clone();
+            let start = *offset + 1;
             let end = *offset + x;
             intervals.push(GeomInterval {
                 start: GeomOffset::Bounded(start),
@@ -180,9 +180,9 @@ fn as_salmon_str_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String, 
         };
 
     let append_interval_unbounded = |offset: &mut u32, intervals: &mut Vec<GeomInterval>| -> () {
-        let start = offset;
+        let start = *offset + 1;
         intervals.push(GeomInterval {
-            start: GeomOffset::Bounded(*start),
+            start: GeomOffset::Bounded(start),
             end: GeomOffset::Unbounded,
         });
     };
@@ -279,9 +279,11 @@ fn main() {
     // Because ident_list is silent, the iterator will contain idents
     for read_desc in fragment_desc {
         // A pair is a combination of the rule which matched and a span of input
+        /*
         println!("Rule:    {:?}", read_desc.as_rule());
         println!("Span:    {:?}", read_desc.as_span());
         println!("Text:    {}", read_desc.as_str());
+        */
 
         let read_num : u32;
         match read_desc.as_rule() {
