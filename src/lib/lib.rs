@@ -18,6 +18,8 @@ pub enum GeomLen {
     Unbounded,
 }
 
+/// The pieces of geometry (types) we
+/// currently support.
 #[derive(Debug, Copy, Clone)]
 pub enum GeomPiece {
     Barcode(GeomLen),
