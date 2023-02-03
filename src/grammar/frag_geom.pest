@@ -1,0 +1,25 @@
+read_num = { "1" | "2" }
+len = { ASCII_DIGIT+ }
+bounded_barcode_segment = { "b[" ~ len ~ "]" }
+bounded_umi_segment = { "u[" ~ len ~ "]" }
+bounded_read_segment = { "r[" ~ len ~ "]" }
+bounded_discard_segment = { "x[" ~ len ~ "]" }
+unbounded_barcode_segment = { "b:" }
+unbounded_umi_segment = { "u:" }
+unbounded_read_segment = { "r:" }
+unbounded_discard_segment = { "x:" }
+
+bounded_segment = { (bounded_umi_segment | 
+bounded_read_segment | 
+bounded_barcode_segment |
+bounded_discard_segment) }
+
+unbounded_segment = { (unbounded_umi_segment | 
+unbounded_read_segment | 
+unbounded_barcode_segment |
+unbounded_discard_segment) }
+
+read_desc = { "{" ~ ((unbounded_segment) | (bounded_segment)+ ~ (unbounded_segment){0,1}) ~ "}" }
+read_1_desc = { "1" ~ read_desc }
+read_2_desc = { "2" ~ read_desc }
+frag_desc = _{ read_1_desc ~ read_2_desc }
