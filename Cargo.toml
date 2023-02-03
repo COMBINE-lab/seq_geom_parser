@@ -1,5 +1,5 @@
 [package]
-name = "library_geom_parser"
+name = "seq_geom_parser"
 version = "0.1.0"
 edition = "2021"
 
