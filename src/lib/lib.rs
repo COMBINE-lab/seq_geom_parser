@@ -85,17 +85,17 @@ pub trait AppendToCmdArgs {
     fn append(&self, cmd: &mut std::process::Command);
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct PiscemGeomDesc {
-    read1_desc: String,
-    read2_desc: String,
+    pub read1_desc: String,
+    pub read2_desc: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Eq, PartialEq)]
 pub struct SalmonSeparateGeomDesc {
-    barcode_desc: String,
-    umi_desc: String,
-    read_desc: String,
+    pub barcode_desc: String,
+    pub umi_desc: String,
+    pub read_desc: String,
 }
 
 impl AppendToCmdArgs for PiscemGeomDesc {
