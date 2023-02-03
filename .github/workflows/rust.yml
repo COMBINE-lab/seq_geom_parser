@@ -64,4 +64,4 @@ jobs:
         uses: actions-rs-plus/clippy-check@cbcfbff5103c40b26d7077f164f0ec6052036081
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: -A clippy::uninlined_format_args
+          args: -- -A clippy::uninlined_format_args
