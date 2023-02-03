@@ -3,7 +3,6 @@ extern crate pest;
 extern crate pest_derive;
 
 use pest::Parser;
-use std::env;
 use std::fmt;
 
 #[derive(Parser)]
@@ -27,13 +26,11 @@ enum GeomPiece {
 fn parse_bounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::bounded_umi_segment => {
-            println!("## bounded umi segment : {}", r.as_str());
             for len_val in r.into_inner() {
                 return GeomPiece::UMI(GeomLen::Bounded(len_val.as_str().parse::<u32>().unwrap()));
             }
         }
         Rule::bounded_barcode_segment => {
-            println!("## bounded barcode segment : {}", r.as_str());
             for len_val in r.into_inner() {
                 return GeomPiece::Barcode(GeomLen::Bounded(
                     len_val.as_str().parse::<u32>().unwrap(),
@@ -41,7 +38,6 @@ fn parse_bounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
             }
         }
         Rule::bounded_discard_segment => {
-            println!("## bounded discard segment : {}", r.as_str());
             for len_val in r.into_inner() {
                 return GeomPiece::Discard(GeomLen::Bounded(
                     len_val.as_str().parse::<u32>().unwrap(),
@@ -49,7 +45,6 @@ fn parse_bounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
             }
         }
         Rule::bounded_read_segment => {
-            println!("## bounded read segment : {}", r.as_str());
             for len_val in r.into_inner() {
                 return GeomPiece::ReadSeq(GeomLen::Bounded(
                     len_val.as_str().parse::<u32>().unwrap(),
@@ -64,19 +59,15 @@ fn parse_bounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
 fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::unbounded_umi_segment => {
-            println!("## unbounded umi segment : {}", r.as_str());
             return GeomPiece::UMI(GeomLen::Unbounded);
         }
         Rule::unbounded_barcode_segment => {
-            println!("## unbounded barcode segment : {}", r.as_str());
             return GeomPiece::Barcode(GeomLen::Unbounded);
         }
         Rule::unbounded_discard_segment => {
-            println!("## unbounded discard segment : {}", r.as_str());
             return GeomPiece::Discard(GeomLen::Unbounded);
         }
         Rule::unbounded_read_segment => {
-            println!("## unbounded read segment : {}", r.as_str());
             return GeomPiece::ReadSeq(GeomLen::Unbounded);
         }
         _ => unimplemented!(),
@@ -86,11 +77,9 @@ fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
 fn parse_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::bounded_segment => {
-            println!("## bounded segment : {}", r.as_str());
             return parse_bounded_segment(r.into_inner().next().unwrap());
         }
         Rule::unbounded_segment => {
-            println!("## unbounded segment : {}", r.as_str());
             return parse_unbounded_segment(r.into_inner().next().unwrap());
         }
         _ => unimplemented!(),
@@ -131,18 +120,27 @@ fn as_piscem_str(geom_pieces: &[GeomPiece]) -> String {
     rep
 }
 
+// for the "separate" salmon format, we need to collect
+// the intervals corresponding to each part of the geometry
+// separately.  So we need to keep track of intervals which
+// is just a pair of offsets.
+
+// the offset can be bounded, or unbounded
+// (i.e. goes until the end of the current read)
 enum GeomOffset {
     Bounded(u32),
     Unbounded,
 }
 
+// an interval is just a pair of offsets
 struct GeomInterval {
     start: GeomOffset,
     end: GeomOffset,
 }
 
-// To use the `{}` marker, the trait `fmt::Display` must be implemented
-// manually for the type.
+/// to be able to render a GeomInterval as a string. This
+/// is basically just rendering "x-y", for offsets x and y, but
+/// if y is unbounded, we render "x-end" instead.
 impl fmt::Display for GeomInterval {
     // This trait requires `fmt` with this exact signature.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -157,7 +155,6 @@ impl fmt::Display for GeomInterval {
         let e = match self.end {
             GeomOffset::Bounded(x) => format!("{}", x),
             GeomOffset::Unbounded => format!("end"),
-            _ => format!("XXX"),
         };
         write!(f, "{}-{}", s, e)
     }
@@ -165,111 +162,79 @@ impl fmt::Display for GeomInterval {
 
 /// should return struct or enum instead
 fn as_salmon_str_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String, String) {
-    let barcode_intervals: String;
     let mut offset = 1_u32;
-    let mut intervals = Vec::<GeomInterval>::new();
+
+    let mut bc_intervals = Vec::<GeomInterval>::new();
+    let mut umi_intervals = Vec::<GeomInterval>::new();
+    let mut read_intervals = Vec::<GeomInterval>::new();
+
+    let append_interval_bounded =
+        |offset: &mut u32, x: u32, intervals: &mut Vec<GeomInterval>| -> () {
+            let start = offset.clone();
+            let end = *offset + x;
+            intervals.push(GeomInterval {
+                start: GeomOffset::Bounded(start),
+                end: GeomOffset::Bounded(end),
+            });
+            *offset += x;
+        };
+
+    let append_interval_unbounded = |offset: &mut u32, intervals: &mut Vec<GeomInterval>| -> () {
+        let start = offset;
+        intervals.push(GeomInterval {
+            start: GeomOffset::Bounded(*start),
+            end: GeomOffset::Unbounded,
+        });
+    };
+
     for gp in geom_pieces {
         match gp {
             GeomPiece::Barcode(GeomLen::Bounded(x)) => {
-                let start = offset;
-                let end = offset + x;
-                intervals.push(GeomInterval {
-                    start: GeomOffset::Bounded(start),
-                    end: GeomOffset::Bounded(end),
-                });
-                offset += x;
+                append_interval_bounded(&mut offset, *x, &mut bc_intervals);
             }
-            GeomPiece::UMI(GeomLen::Bounded(x))
-            | GeomPiece::ReadSeq(GeomLen::Bounded(x))
-            | GeomPiece::Discard(GeomLen::Bounded(x)) => {
+            GeomPiece::UMI(GeomLen::Bounded(x)) => {
+                append_interval_bounded(&mut offset, *x, &mut umi_intervals);
+            }
+            GeomPiece::ReadSeq(GeomLen::Bounded(x)) => {
+                append_interval_bounded(&mut offset, *x, &mut read_intervals);
+            }
+            GeomPiece::Discard(GeomLen::Bounded(x)) => {
                 offset += x;
             }
             GeomPiece::Barcode(GeomLen::Unbounded) => {
-                intervals.push(GeomInterval {
-                    start: GeomOffset::Bounded(offset),
-                    end: GeomOffset::Unbounded,
-                });
-            }
-            _ => {}
-        };
-    }
-    barcode_intervals = intervals
-        .iter()
-        .map(|x| format!("{}", x))
-        .collect::<Vec<String>>()
-        .join(",");
-
-    let umi_intervals: String;
-    intervals.clear();
-    offset = 1_u32;
-    for gp in geom_pieces {
-        match gp {
-            GeomPiece::UMI(GeomLen::Bounded(x)) => {
-                let start = offset;
-                let end = offset + x;
-                intervals.push(GeomInterval {
-                    start: GeomOffset::Bounded(start),
-                    end: GeomOffset::Bounded(end),
-                });
-                offset += x;
-            }
-            GeomPiece::Barcode(GeomLen::Bounded(x))
-            | GeomPiece::ReadSeq(GeomLen::Bounded(x))
-            | GeomPiece::Discard(GeomLen::Bounded(x)) => {
-                offset += x;
+                append_interval_unbounded(&mut offset, &mut bc_intervals);
             }
             GeomPiece::UMI(GeomLen::Unbounded) => {
-                intervals.push(GeomInterval {
-                    start: GeomOffset::Bounded(offset),
-                    end: GeomOffset::Unbounded,
-                });
+                append_interval_unbounded(&mut offset, &mut umi_intervals);
             }
-            _ => {}
+            GeomPiece::ReadSeq(GeomLen::Unbounded) => {
+                append_interval_unbounded(&mut offset, &mut read_intervals);
+            }
+            GeomPiece::Discard(GeomLen::Unbounded) => {}
         };
     }
-    umi_intervals = intervals
+
+    let bc_str = bc_intervals
         .iter()
         .map(|x| format!("{}", x))
         .collect::<Vec<String>>()
         .join(",");
 
-    let read_intervals: String;
-    intervals.clear();
-    offset = 1_u32;
-    for gp in geom_pieces {
-        match gp {
-            GeomPiece::ReadSeq(GeomLen::Bounded(x)) => {
-                let start = offset;
-                let end = offset + x;
-                intervals.push(GeomInterval {
-                    start: GeomOffset::Bounded(start),
-                    end: GeomOffset::Bounded(end),
-                });
-                offset += x;
-            }
-            GeomPiece::UMI(GeomLen::Bounded(x))
-            | GeomPiece::Barcode(GeomLen::Bounded(x))
-            | GeomPiece::Discard(GeomLen::Bounded(x)) => {
-                offset += x;
-            }
-            GeomPiece::ReadSeq(GeomLen::Unbounded) => {
-                intervals.push(GeomInterval {
-                    start: GeomOffset::Bounded(offset),
-                    end: GeomOffset::Unbounded,
-                });
-            }
-            _ => {}
-        };
-    }
-    read_intervals = intervals
+    let umi_str = umi_intervals
+        .iter()
+        .map(|x| format!("{}", x))
+        .collect::<Vec<String>>()
+        .join(",");
+
+    let read_str = read_intervals
         .iter()
         .map(|x| format!("{}", x))
         .collect::<Vec<String>>()
         .join(",");
     (
-        format!("[{}]", barcode_intervals),
-        format!("[{}]", umi_intervals),
-        format!("[{}]", read_intervals),
+        format!("[{}]", bc_str),
+        format!("[{}]", umi_str),
+        format!("[{}]", read_str),
     )
 }
 
@@ -318,7 +283,7 @@ fn main() {
         println!("Span:    {:?}", read_desc.as_span());
         println!("Text:    {}", read_desc.as_str());
 
-        let mut read_num = 0;
+        let read_num : u32;
         match read_desc.as_rule() {
             Rule::read_1_desc => {
                 read_num = 1;
