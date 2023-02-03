@@ -33,4 +33,4 @@ jobs:
         if: ${{ steps.release_seq_geom_parser.outputs.release_created }}
         run: cargo publish --token ${CRATES_TOKEN}
         env:
-          CRATES_TOKEN = ${{ secrets.CRATES_IO_TOKEN }}
+          CRATES_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
