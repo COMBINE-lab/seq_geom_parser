@@ -18,14 +18,20 @@ pub enum GeomLen {
     Unbounded,
 }
 
+#[derive(Debug, Clone)]
+pub enum NucStr {
+    Seq(String),
+}
+
 /// The pieces of geometry (types) we
 /// currently support.
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub enum GeomPiece {
     Barcode(GeomLen),
     Umi(GeomLen),
     Discard(GeomLen),
     ReadSeq(GeomLen),
+    Fixed(NucStr),
 }
 
 fn parse_bounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
@@ -54,6 +60,11 @@ fn parse_bounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
                 return GeomPiece::ReadSeq(GeomLen::Bounded(
                     len_val.as_str().parse::<u32>().unwrap(),
                 ));
+            }
+        }
+        Rule::bounded_fixedseq_segment => {
+            if let Some(nuc_seq) = r.into_inner().next() {
+                return GeomPiece::Fixed(NucStr::Seq(nuc_seq.as_str().to_owned()));
             }
         }
         _ => unimplemented!(),
@@ -135,6 +146,9 @@ fn as_piscem_geom_desc_single_read(geom_pieces: &[GeomPiece]) -> String {
             }
             GeomPiece::ReadSeq(GeomLen::Bounded(x)) => {
                 rep += &format!("r[{}]", x);
+            }
+            GeomPiece::Fixed(NucStr::Seq(s)) => {
+                rep += &format!("f[{}]", s);
             }
             GeomPiece::Discard(GeomLen::Unbounded) => {
                 rep += "x:";
@@ -244,6 +258,9 @@ fn as_salmon_desc_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String,
             }
             GeomPiece::Discard(GeomLen::Bounded(x)) => {
                 offset += x;
+            }
+            GeomPiece::Fixed(NucStr::Seq(_s)) => {
+                unimplemented!("Fixed content nucleotide tags are not supported in the salmon separate description format");
             }
             GeomPiece::Barcode(GeomLen::Unbounded) => {
                 append_interval_unbounded(&mut offset, &mut bc_intervals);
