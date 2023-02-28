@@ -15,6 +15,7 @@ pub struct FragGeomParser;
 #[derive(Debug, Copy, Clone)]
 pub enum GeomLen {
     Bounded(u32),
+    BoundedRange(u32,u32),
     Unbounded,
 }
 
@@ -34,12 +35,41 @@ pub enum GeomPiece {
     Fixed(NucStr),
 }
 
+fn parse_bounded_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
+    let rule_pair = r.next().unwrap();
+    match rule_pair.as_rule() {
+        Rule::len => {
+            let mut len_pairs = rule_pair.into_inner();
+            match len_pairs.peek().unwrap().as_rule() {
+                Rule::single_len => {
+                    if let Some(len_val) = len_pairs.next() {
+                        return GeomLen::Bounded(len_val.as_str().parse::<u32>().unwrap());
+                    }
+                }
+                Rule::len_range => {
+                    println!("HERE!");
+                    if let (Some(len_shortest), Some(len_longest)) = (len_pairs.next(), len_pairs.next_back()) {
+                        return GeomLen::BoundedRange(len_shortest.as_str().parse::<u32>().unwrap(),
+                            len_longest.as_str().parse::<u32>().unwrap());
+                    }
+                }
+                _ => todo!()
+            }
+        }
+        _ => todo!()
+    }
+    GeomLen::Bounded(0)
+}
+
 fn parse_bounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::bounded_umi_segment => {
-            if let Some(len_val) = r.into_inner().next() {
-                return GeomPiece::Umi(GeomLen::Bounded(len_val.as_str().parse::<u32>().unwrap()));
-            }
+            let gl = parse_bounded_len(&mut r.into_inner());
+            println!("gl = {:#?}", gl);
+            return GeomPiece::Umi(gl);
+            //if let Some(len_val) = r.into_inner().next() {
+            //return GeomPiece::Umi(GeomLen::Bounded(len_val.as_str().parse::<u32>().unwrap()));
+            //}
         }
         Rule::bounded_barcode_segment => {
             if let Some(len_val) = r.into_inner().next() {
@@ -162,6 +192,7 @@ fn as_piscem_geom_desc_single_read(geom_pieces: &[GeomPiece]) -> String {
             GeomPiece::ReadSeq(GeomLen::Unbounded) => {
                 rep += "r:";
             }
+            _ => todo!()
         }
     }
     rep += "}";
@@ -272,6 +303,7 @@ fn as_salmon_desc_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String,
                 append_interval_unbounded(&mut offset, &mut read_intervals);
             }
             GeomPiece::Discard(GeomLen::Unbounded) => {}
+            _ => todo!()
         };
     }
 
