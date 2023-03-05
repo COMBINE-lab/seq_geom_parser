@@ -1,7 +1,11 @@
 read_num = { "1" | "2" }
-len = { ASCII_DIGIT+ }
+single_len = { ASCII_DIGIT+ }
+len_range = @{ ASCII_DIGIT+ ~ "-" ~ ASCII_DIGIT+ }
+len = { (len_range | single_len) }
+nucstr = { ("A" | "C" | "G" | "T")+ }
 bounded_barcode_segment = { "b[" ~ len ~ "]" }
 bounded_umi_segment = { "u[" ~ len ~ "]" }
+bounded_fixedseq_segment = { "f[" ~ nucstr ~ "]" }
 bounded_read_segment = { "r[" ~ len ~ "]" }
 bounded_discard_segment = { "x[" ~ len ~ "]" }
 unbounded_barcode_segment = { "b:" }
@@ -9,13 +13,14 @@ unbounded_umi_segment = { "u:" }
 unbounded_read_segment = { "r:" }
 unbounded_discard_segment = { "x:" }
 
-bounded_segment = { (bounded_umi_segment | 
-bounded_read_segment | 
+bounded_segment = { (bounded_umi_segment |
+bounded_read_segment |
 bounded_barcode_segment |
+bounded_fixedseq_segment |
 bounded_discard_segment) }
 
-unbounded_segment = { (unbounded_umi_segment | 
-unbounded_read_segment | 
+unbounded_segment = { (unbounded_umi_segment |
+unbounded_read_segment |
 unbounded_barcode_segment |
 unbounded_discard_segment) }
 
