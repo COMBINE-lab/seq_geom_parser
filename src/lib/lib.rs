@@ -35,6 +35,24 @@ pub enum GeomPiece {
     Fixed(NucStr),
 }
 
+impl GeomPiece {
+    /// This method returns true if the current GeomPiece has a bounded length 
+    /// (either Bounded, BoundedRange, or a Fixed(NucStr)), and false otherwise.
+    pub fn is_bounded(&self) -> bool {
+        match self {
+            GeomPiece::Umi(GeomLen::Unbounded) | 
+            GeomPiece::Barcode(GeomLen::Unbounded) |
+            GeomPiece::ReadSeq(GeomLen::Unbounded) |
+            GeomPiece::Discard(GeomLen::Unbounded) => { 
+                false
+            }
+            _ => {
+                true
+            }
+        }
+    }
+}
+
 fn parse_bounded_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
     let rule_pair = r.next().unwrap();
     match rule_pair.as_rule() {
