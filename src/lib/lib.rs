@@ -381,6 +381,7 @@ impl SalmonSeparateGeomDesc {
     }
 }
 
+#[derive(Debug)]
 pub struct FragmentGeomDesc {
     pub read1_desc: Vec<GeomPiece>,
     pub read2_desc: Vec<GeomPiece>,
