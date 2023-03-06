@@ -47,6 +47,19 @@ impl GeomPiece {
             _ => true,
         }
     }
+
+    /// This method returns true if the current GeomPiece is "complex"
+    /// (either BoundedRange, or a Fixed(NucStr)), and false otherwise.
+    pub fn is_complex(&self) -> bool {
+        match self {
+            GeomPiece::Fixed(NucStr::Seq(_))
+            | GeomPiece::Umi(GeomLen::BoundedRange(_, _))
+            | GeomPiece::Barcode(GeomLen::BoundedRange(_, _))
+            | GeomPiece::ReadSeq(GeomLen::BoundedRange(_, _))
+            | GeomPiece::Discard(GeomLen::BoundedRange(_, _)) => true,
+            _ => false,
+        }
+    }
 }
 
 fn parse_bounded_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
@@ -385,6 +398,19 @@ impl SalmonSeparateGeomDesc {
 pub struct FragmentGeomDesc {
     pub read1_desc: Vec<GeomPiece>,
     pub read2_desc: Vec<GeomPiece>,
+}
+
+impl FragmentGeomDesc {
+    /// A "complex" geometry is one that contains
+    /// a FixedSeq piece, and/or a BoundedRange piece
+    pub fn is_complex_geometry(&self) -> bool {
+        for gp in self.read1_desc.iter().chain(self.read2_desc.iter()) {
+            if gp.is_complex() {
+                return true;
+            }
+        }
+        false
+    }
 }
 
 impl<'a> TryFrom<&'a str> for FragmentGeomDesc {
