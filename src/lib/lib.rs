@@ -39,26 +39,26 @@ impl GeomPiece {
     /// This method returns true if the current GeomPiece has a bounded length
     /// (either Bounded, BoundedRange, or a Fixed(NucStr)), and false otherwise.
     pub fn is_bounded(&self) -> bool {
-        match self {
+        !matches!(
+            self,
             GeomPiece::Umi(GeomLen::Unbounded)
-            | GeomPiece::Barcode(GeomLen::Unbounded)
-            | GeomPiece::ReadSeq(GeomLen::Unbounded)
-            | GeomPiece::Discard(GeomLen::Unbounded) => false,
-            _ => true,
-        }
+                | GeomPiece::Barcode(GeomLen::Unbounded)
+                | GeomPiece::ReadSeq(GeomLen::Unbounded)
+                | GeomPiece::Discard(GeomLen::Unbounded)
+        )
     }
 
     /// This method returns true if the current GeomPiece is "complex"
     /// (either BoundedRange, or a Fixed(NucStr)), and false otherwise.
     pub fn is_complex(&self) -> bool {
-        match self {
+        matches!(
+            self,
             GeomPiece::Fixed(NucStr::Seq(_))
-            | GeomPiece::Umi(GeomLen::BoundedRange(_, _))
-            | GeomPiece::Barcode(GeomLen::BoundedRange(_, _))
-            | GeomPiece::ReadSeq(GeomLen::BoundedRange(_, _))
-            | GeomPiece::Discard(GeomLen::BoundedRange(_, _)) => true,
-            _ => false,
-        }
+                | GeomPiece::Umi(GeomLen::BoundedRange(_, _))
+                | GeomPiece::Barcode(GeomLen::BoundedRange(_, _))
+                | GeomPiece::ReadSeq(GeomLen::BoundedRange(_, _))
+                | GeomPiece::Discard(GeomLen::BoundedRange(_, _))
+        )
     }
 }
 
