@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.3](https://github.com/COMBINE-lab/seq_geom_parser/compare/v0.1.2...v0.1.3) (2023-03-07)
+
+
+### Bug Fixes
+
+* add is_complex_geometry function ([d1a497b](https://github.com/COMBINE-lab/seq_geom_parser/commit/d1a497bf7e41ef9eb717936a5e52b7ecf0fca4af))
+* derive Debug on FragmentGeomDesc ([f98450b](https://github.com/COMBINE-lab/seq_geom_parser/commit/f98450b9920489c949c95120dd00dbd61de68eee))
+* make clippy happy ([bbc151b](https://github.com/COMBINE-lab/seq_geom_parser/commit/bbc151bf5b817ba7878b4ed373374decc4c020b0))
+
 ## [0.1.2](https://github.com/COMBINE-lab/seq_geom_parser/compare/v0.1.1...v0.1.2) (2023-03-05)
 
 
