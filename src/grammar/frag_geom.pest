@@ -8,7 +8,7 @@ dclose = _{ "}" }
 
 read_num   =  { "1" | "2" }
 single_len =  { ASCII_DIGIT+ }
-len_range  = @{ ASCII_DIGIT+ ~ rsep ~ ASCII_DIGIT+ }
+len_range  =  ${ single_len ~ rsep ~ single_len }
 nucstr     =  { ("A" | "C" | "G" | "T")+ }
 
 fixed_barcode_segment = { "b" ~ bopen ~ single_len ~ bclose }

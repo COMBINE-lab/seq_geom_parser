@@ -35,6 +35,28 @@ pub enum GeomPiece {
     Fixed(NucStr),
 }
 
+impl fmt::Display for GeomPiece {
+    /// Formats and returns the canonical string representation of each type of
+    /// `GeomPiece`.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            GeomPiece::Umi(GeomLen::Unbounded) => write!(f, "u:"),
+            GeomPiece::Barcode(GeomLen::Unbounded) => write!(f, "b:"),
+            GeomPiece::ReadSeq(GeomLen::Unbounded) => write!(f, "r:"),
+            GeomPiece::Discard(GeomLen::Unbounded) => write!(f, "x:"),
+            GeomPiece::Umi(GeomLen::FixedLen(x)) => write!(f, "u[{}]", x),
+            GeomPiece::Barcode(GeomLen::FixedLen(x)) => write!(f, "b[{}]", x),
+            GeomPiece::ReadSeq(GeomLen::FixedLen(x)) => write!(f, "r[{}]", x),
+            GeomPiece::Discard(GeomLen::FixedLen(x)) => write!(f, "x[{}]", x),
+            GeomPiece::Umi(GeomLen::LenRange(l, h)) => write!(f, "u[{}-{}]", l, h),
+            GeomPiece::Barcode(GeomLen::LenRange(l, h)) => write!(f, "b[{}-{}]", l, h),
+            GeomPiece::ReadSeq(GeomLen::LenRange(l, h)) => write!(f, "r[{}-{}]", l, h),
+            GeomPiece::Discard(GeomLen::LenRange(l, h)) => write!(f, "x[{}-{}]", l, h),
+            GeomPiece::Fixed(NucStr::Seq(s)) => write!(f, "f[{}]", s),
+        }
+    }
+}
+
 impl GeomPiece {
     /// This method returns true if the current GeomPiece has a fixed length
     /// (either FixedLen or a Fixed(NucStr)), and false otherwise.
@@ -48,6 +70,7 @@ impl GeomPiece {
                 | GeomPiece::Fixed(NucStr::Seq(_))
         )
     }
+
     /// This method returns true if the current GeomPiece has a bounded length
     /// (either Bounded, BoundedRange, or a Fixed(NucStr)), and false otherwise.
     pub fn is_bounded(&self) -> bool {
@@ -74,29 +97,43 @@ impl GeomPiece {
     }
 }
 
-fn parse_fixed_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
+// functions for parsing the different types of geometry elements
+
+/// Parses a string "x" (assumed to be parsable as a `u32`) into an
+/// integer x and returns x.
+fn parse_fixed_len_as_u32(r: &mut pest::iterators::Pairs<Rule>) -> u32 {
     let rn = r.next().unwrap();
     match rn.as_rule() {
         Rule::single_len => {
-            return GeomLen::FixedLen(rn.as_str().parse::<u32>().unwrap());
+            return rn.as_str().parse::<u32>().unwrap();
         }
         _ => todo!(),
     }
 }
 
+/// Parses a string "x" (assumed to be parsable as a `u32`) into an
+/// integer x and returns `GeomLen::FixedLen(x)`.
+fn parse_fixed_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
+    GeomLen::FixedLen(parse_fixed_len_as_u32(r))
+}
+
+/// Parses a range of the format, "l-h" (where "l" and "h" assumed to be parsable as a `u32`)
+/// and returns `GeomLen::LenRange(l, h)`.
 fn parse_ranged_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
     let rn = r.next().unwrap();
     match rn.as_rule() {
         Rule::len_range => {
-            if let Some((ls, ll)) = rn.as_str().split_once('-') {
-                return GeomLen::LenRange(ls.parse::<u32>().unwrap(), ll.parse::<u32>().unwrap());
-            }
+            let mut ri = rn.into_inner();
+            let l = parse_fixed_len_as_u32(&mut ri);
+            let h = parse_fixed_len_as_u32(&mut ri);
+            return GeomLen::LenRange(l, h);
         }
         _ => todo!(),
     }
-    GeomLen::Unbounded
 }
 
+/// Parses a fixed nucleotide sequence s (matching "[ACGT]+") and returns
+/// `NucStr::Seq(s)`.
 fn parse_fixed_seq(r: &mut pest::iterators::Pairs<Rule>) -> NucStr {
     let rn = r.next().unwrap();
     match rn.as_rule() {
@@ -108,6 +145,8 @@ fn parse_fixed_seq(r: &mut pest::iterators::Pairs<Rule>) -> NucStr {
     }
 }
 
+/// Parses a `GeomPiece` that represents a "ranged segment", that is a
+/// barcode, umi, read string, or discard segment having a ranged length.
 fn parse_ranged_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::ranged_umi_segment => {
@@ -130,6 +169,8 @@ fn parse_ranged_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     }
 }
 
+/// Parses a `GeomPiece` that represents a "ranged segment", that is a
+/// barcode, umi, read string, discard segment, or fixed seq segment having a fixed length.
 fn parse_fixed_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::fixed_umi_segment => {
@@ -156,6 +197,9 @@ fn parse_fixed_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     };
 }
 
+/// Parses a `GeomPiece` that represents an "unbounded segment", that is a
+/// barcode, umi, read string, or discard segment that is not of fixed length
+/// (i.e. that has length >=1).
 fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::unbounded_umi_segment => GeomPiece::Umi(GeomLen::Unbounded),
@@ -166,6 +210,10 @@ fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     }
 }
 
+/// Parses any type of geometry segment.  According to the grammer, this will be either
+/// a fixed_segment, fixed_seq_segment, ranged_segment, or unbounded_segment. This function
+/// is the top-level parser for individual "pieces" of geometry, and returns the corresponding
+/// `GeomPiece`.
 pub fn parse_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::fixed_segment => {
@@ -185,9 +233,13 @@ pub fn parse_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     };
 }
 
+/// This trait says that a given implementor is able to properly add itself
+/// to the command represented by `cmd`.
 pub trait AppendToCmdArgs {
     fn append(&self, cmd: &mut std::process::Command);
 }
+
+// ======== for piscem
 
 #[derive(Debug, Eq, PartialEq)]
 pub struct PiscemGeomDesc {
@@ -195,18 +247,40 @@ pub struct PiscemGeomDesc {
     pub read2_desc: String,
 }
 
-#[derive(Debug, Eq, PartialEq)]
-pub struct SalmonSeparateGeomDesc {
-    pub barcode_desc: String,
-    pub umi_desc: String,
-    pub read_desc: String,
-}
-
 impl AppendToCmdArgs for PiscemGeomDesc {
     fn append(&self, cmd: &mut std::process::Command) {
         let geo_desc = format!("1{}2{}", self.read1_desc, self.read2_desc);
         cmd.args(["--geometry", geo_desc.as_str()]);
     }
+}
+
+fn as_piscem_geom_desc_single_read(geom_pieces: &[GeomPiece]) -> String {
+    let desc = geom_pieces
+        .iter()
+        .map(|x| format!("{}", x))
+        .collect::<Vec<String>>()
+        .join("");
+    format!("{{{}}}", desc)
+}
+
+impl PiscemGeomDesc {
+    pub fn from_geom_pieces(geom_pieces_r1: &[GeomPiece], geom_pieces_r2: &[GeomPiece]) -> Self {
+        let read1_desc = as_piscem_geom_desc_single_read(geom_pieces_r1);
+        let read2_desc = as_piscem_geom_desc_single_read(geom_pieces_r2);
+        Self {
+            read1_desc,
+            read2_desc,
+        }
+    }
+}
+
+// ======== for salmon
+
+#[derive(Debug, Eq, PartialEq)]
+pub struct SalmonSeparateGeomDesc {
+    pub barcode_desc: String,
+    pub umi_desc: String,
+    pub read_desc: String,
 }
 
 impl AppendToCmdArgs for SalmonSeparateGeomDesc {
@@ -219,66 +293,6 @@ impl AppendToCmdArgs for SalmonSeparateGeomDesc {
             "--umi-geometry",
             self.umi_desc.as_str(),
         ]);
-    }
-}
-
-fn as_piscem_geom_desc_single_read(geom_pieces: &[GeomPiece]) -> String {
-    let mut rep = String::from("{");
-    for gp in geom_pieces {
-        match gp {
-            GeomPiece::Discard(GeomLen::FixedLen(x)) => {
-                rep += &format!("x[{}]", x);
-            }
-            GeomPiece::Barcode(GeomLen::FixedLen(x)) => {
-                rep += &format!("b[{}]", x);
-            }
-            GeomPiece::Umi(GeomLen::FixedLen(x)) => {
-                rep += &format!("u[{}]", x);
-            }
-            GeomPiece::ReadSeq(GeomLen::FixedLen(x)) => {
-                rep += &format!("r[{}]", x);
-            }
-            GeomPiece::Discard(GeomLen::LenRange(l, h)) => {
-                rep += &format!("x[{}-{}]", l, h);
-            }
-            GeomPiece::Barcode(GeomLen::LenRange(l, h)) => {
-                rep += &format!("b[{}-{}]", l, h);
-            }
-            GeomPiece::Umi(GeomLen::LenRange(l, h)) => {
-                rep += &format!("u[{}-{}]", l, h);
-            }
-            GeomPiece::ReadSeq(GeomLen::LenRange(l, h)) => {
-                rep += &format!("r[{}-{}]", l, h);
-            }
-            GeomPiece::Fixed(NucStr::Seq(s)) => {
-                rep += &format!("f[{}]", s);
-            }
-            GeomPiece::Discard(GeomLen::Unbounded) => {
-                rep += "x:";
-            }
-            GeomPiece::Barcode(GeomLen::Unbounded) => {
-                rep += "b:";
-            }
-            GeomPiece::Umi(GeomLen::Unbounded) => {
-                rep += "u:";
-            }
-            GeomPiece::ReadSeq(GeomLen::Unbounded) => {
-                rep += "r:";
-            }
-        }
-    }
-    rep += "}";
-    rep
-}
-
-impl PiscemGeomDesc {
-    pub fn from_geom_pieces(geom_pieces_r1: &[GeomPiece], geom_pieces_r2: &[GeomPiece]) -> Self {
-        let read1_desc = as_piscem_geom_desc_single_read(geom_pieces_r1);
-        let read2_desc = as_piscem_geom_desc_single_read(geom_pieces_r2);
-        Self {
-            read1_desc,
-            read2_desc,
-        }
     }
 }
 
@@ -444,26 +458,6 @@ pub struct FragmentGeomDesc {
     pub read2_desc: Vec<GeomPiece>,
 }
 
-impl fmt::Display for GeomPiece {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match &self {
-            GeomPiece::Umi(GeomLen::Unbounded) => write!(f, "u:"),
-            GeomPiece::Barcode(GeomLen::Unbounded) => write!(f, "b:"),
-            GeomPiece::ReadSeq(GeomLen::Unbounded) => write!(f, "r:"),
-            GeomPiece::Discard(GeomLen::Unbounded) => write!(f, "x:"),
-            GeomPiece::Umi(GeomLen::FixedLen(x)) => write!(f, "u[{}]", x),
-            GeomPiece::Barcode(GeomLen::FixedLen(x)) => write!(f, "b[{}]", x),
-            GeomPiece::ReadSeq(GeomLen::FixedLen(x)) => write!(f, "r[{}]", x),
-            GeomPiece::Discard(GeomLen::FixedLen(x)) => write!(f, "x[{}]", x),
-            GeomPiece::Umi(GeomLen::LenRange(l, h)) => write!(f, "u[{}-{}]", l, h),
-            GeomPiece::Barcode(GeomLen::LenRange(l, h)) => write!(f, "b[{}-{}]", l, h),
-            GeomPiece::ReadSeq(GeomLen::LenRange(l, h)) => write!(f, "r[{}-{}]", l, h),
-            GeomPiece::Discard(GeomLen::LenRange(l, h)) => write!(f, "x[{}-{}]", l, h),
-            GeomPiece::Fixed(NucStr::Seq(s)) => write!(f, "f[{}]", s),
-        }
-    }
-}
-
 impl fmt::Display for FragmentGeomDesc {
     /// Write back a geometry fragment specification as exactly
     /// the type of string the parser should accept in the first place.
@@ -495,6 +489,12 @@ impl FragmentGeomDesc {
             }
         }
         false
+    }
+
+    /// A "complex" geometry is one that contains only fixed length pieces
+    /// (but doesn't include any fixed seq segments) and unbounded pieces.
+    pub fn is_simple_geometry(&self) -> bool {
+        !self.is_complex_geometry()
     }
 }
 
