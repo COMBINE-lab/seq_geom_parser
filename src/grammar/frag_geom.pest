@@ -1,23 +1,31 @@
+// hidden tokens
+bopen = _{ "[" }
+bclose = _{ "]" }
+rsep = _{ "-" }
+usep = _{ ":" }
+dopen = _{ "{" }
+dclose = _{ "}" }
+
 read_num   =  { "1" | "2" }
 single_len =  { ASCII_DIGIT+ }
-len_range  = @{ ASCII_DIGIT+ ~ "-" ~ ASCII_DIGIT+ }
+len_range  = @{ ASCII_DIGIT+ ~ rsep ~ ASCII_DIGIT+ }
 nucstr     =  { ("A" | "C" | "G" | "T")+ }
 
-fixed_barcode_segment = { "b[" ~ single_len ~ "]" }
-fixed_umi_segment     = { "u[" ~ single_len ~ "]" }
-fixed_seq_segment     = { "f[" ~ nucstr ~ "]" }
-fixed_read_segment    = { "r[" ~ single_len ~ "]" }
-fixed_discard_segment = { "x[" ~ single_len ~ "]" }
+fixed_barcode_segment = { "b" ~ bopen ~ single_len ~ bclose }
+fixed_umi_segment     = { "u" ~ bopen ~ single_len ~ bclose }
+fixed_seq_segment     = { "f" ~ bopen ~ nucstr ~ bclose }
+fixed_read_segment    = { "r" ~ bopen ~ single_len ~ bclose }
+fixed_discard_segment = { "x" ~ bopen ~ single_len ~ bclose }
 
-ranged_barcode_segment = { "b[" ~ len_range ~ "]" }
-ranged_umi_segment     = { "u[" ~ len_range ~ "]" }
-ranged_read_segment    = { "r[" ~ len_range ~ "]" }
-ranged_discard_segment = { "x[" ~ len_range ~ "]" }
+ranged_barcode_segment = { "b" ~ bopen ~ len_range ~ bclose }
+ranged_umi_segment     = { "u" ~ bopen ~ len_range ~ bclose }
+ranged_read_segment    = { "r" ~ bopen ~ len_range ~ bclose }
+ranged_discard_segment = { "x" ~ bopen ~ len_range ~ bclose }
 
-unbounded_barcode_segment = { "b:" }
-unbounded_umi_segment     = { "u:" }
-unbounded_read_segment    = { "r:" }
-unbounded_discard_segment = { "x:" }
+unbounded_barcode_segment = { "b" ~ usep }
+unbounded_umi_segment     = { "u" ~ usep }
+unbounded_read_segment    = { "r" ~ usep }
+unbounded_discard_segment = { "x" ~ usep }
 
 fixed_segment = {
     (fixed_umi_segment | fixed_read_segment | fixed_barcode_segment | fixed_seq_segment | fixed_discard_segment)
@@ -36,8 +44,12 @@ unbounded_segment = {
 }
 
 read_desc = {
-    "{" ~ ((bounded_segment)+ ~ (ranged_segment | unbounded_segment){0, 1} | unbounded_segment | ranged_segment) ~ "}"
+    dopen ~ ((bounded_segment)+ ~ (ranged_segment | unbounded_segment)? | unbounded_segment | ranged_segment) ~ dclose
 }
-read_1_desc =  { "1" ~ read_desc }
-read_2_desc =  { "2" ~ read_desc }
-frag_desc   = _{ read_1_desc ~ read_2_desc }
+read_1_desc = { "1" ~ read_desc }
+read_2_desc = { "2" ~ read_desc }
+frag_desc = _{ SOI ~ read_1_desc ~ read_2_desc ~ EOI}
+
+//frag_desc = { SOI ~ read_1_desc ~ read_2_desc ~ EOI }
+//read_1_desc = { "1" ~ read_desc }
+//read_2_desc = { "2" ~ read_desc }

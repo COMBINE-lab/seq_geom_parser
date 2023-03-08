@@ -170,7 +170,6 @@ fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
 }
 
 pub fn parse_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
-    dbg!("r.as_rule = {:#?}", r.as_rule());
     match r.as_rule() {
         Rule::fixed_segment => {
             return parse_fixed_segment(r.into_inner().next().unwrap());
