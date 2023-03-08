@@ -447,6 +447,38 @@ pub struct FragmentGeomDesc {
     pub read2_desc: Vec<GeomPiece>,
 }
 
+impl fmt::Display for GeomPiece {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match &self {
+            GeomPiece::Umi(GeomLen::Unbounded) => write!(f, "u:"),
+            GeomPiece::Barcode(GeomLen::Unbounded) => write!(f, "b:"),
+            GeomPiece::ReadSeq(GeomLen::Unbounded) => write!(f, "r:"),
+            GeomPiece::Discard(GeomLen::Unbounded) => write!(f, "x:"),
+            GeomPiece::Umi(GeomLen::FixedLen(x)) => write!(f, "u[{}]", x),
+            GeomPiece::Barcode(GeomLen::FixedLen(x)) => write!(f, "b[{}]", x),
+            GeomPiece::ReadSeq(GeomLen::FixedLen(x)) => write!(f, "r[{}]", x),
+            GeomPiece::Discard(GeomLen::FixedLen(x)) => write!(f, "x[{}]", x),
+            GeomPiece::Umi(GeomLen::LenRange(l,h)) => write!(f, "u[{}-{}]", l, h),
+            GeomPiece::Barcode(GeomLen::LenRange(l,h)) => write!(f, "b[{}-{}]", l, h),
+            GeomPiece::ReadSeq(GeomLen::LenRange(l,h)) => write!(f, "r[{}-{}]", l, h),
+            GeomPiece::Discard(GeomLen::LenRange(l,h)) => write!(f, "x[{}-{}]", l, h),
+            GeomPiece::Fixed(NucStr::Seq(s)) => write!(f, "f[{}]", s)
+        }
+    }
+}
+
+impl fmt::Display for FragmentGeomDesc {
+    /// Write back a geometry fragment specification as exactly 
+    /// the type of string the parser should accept in the first place.
+    /// This is the canonical representation of the geometry.
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let desc1 = self.read1_desc.iter().map( |x| format!("{}", x) ).collect::<Vec<String>>().join("");
+        let desc2 = self.read2_desc.iter().map( |x| format!("{}", x) ).collect::<Vec<String>>().join("");
+        write!(f, "1{{{}}}2{{{}}}", desc1, desc2)
+    }
+}
+
+
 impl FragmentGeomDesc {
     /// A "complex" geometry is one that contains
     /// a FixedSeq piece, and/or a BoundedRange piece

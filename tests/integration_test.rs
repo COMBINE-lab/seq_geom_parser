@@ -1,7 +1,33 @@
 use seq_geom_parser::{FragmentGeomDesc, PiscemGeomDesc, SalmonSeparateGeomDesc};
 
 #[test]
-#[should_panic]
+fn test_parse_format_simple() {
+    let arg = "1{b[16]u[12]x:}2{r:}";
+    match FragmentGeomDesc::try_from(arg) {
+        Ok(frag_desc) => {
+            assert_eq!(arg, format!("{}", frag_desc));
+        }
+        Err(e) => {
+            panic!("Failed to parse geometry {}", e);
+        }
+    };
+}
+
+#[test]
+fn test_parse_format_complex() {
+    let arg = "1{b[9-10]f[ACCGT]u[12]b[10]}2{r:}";
+    match FragmentGeomDesc::try_from(arg) {
+        Ok(frag_desc) => {
+            assert_eq!(arg, format!("{}", frag_desc));
+        }
+        Err(e) => {
+            panic!("Failed to parse geometry {}", e);
+        }
+    };
+}
+
+
+#[test]
 fn test_parse_piscem_simple() {
     let arg = "1{b[16]u[12]x:}2{r:}";
     match FragmentGeomDesc::try_from(arg) {
@@ -12,7 +38,7 @@ fn test_parse_piscem_simple() {
             assert_eq!(
                 piscem_desc,
                 PiscemGeomDesc {
-                    read1_desc: "{b[16-18]u[12]x:}".to_string(),
+                    read1_desc: "{b[16]u[12]x:}".to_string(),
                     read2_desc: "{r:}".to_string()
                 }
             );
