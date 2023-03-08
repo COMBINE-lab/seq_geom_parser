@@ -10,6 +10,8 @@ fn main() -> Result<()> {
 
     match FragmentGeomDesc::try_from(arg) {
         Ok(frag_desc) => {
+            println!("parsed geometry : {:#?}", frag_desc);
+            /*
             let piscem_desc =
                 PiscemGeomDesc::from_geom_pieces(&frag_desc.read1_desc, &frag_desc.read2_desc);
             let salmon_desc = SalmonSeparateGeomDesc::from_geom_pieces(
@@ -29,6 +31,7 @@ fn main() -> Result<()> {
             let mut cmd_salmon = std::process::Command::new("salmon");
             salmon_desc.append(&mut cmd_salmon);
             println!("salmon cmd : {:?}", cmd_salmon);
+            */
         }
         Err(e) => {
             bail!(e);

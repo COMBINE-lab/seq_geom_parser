@@ -75,27 +75,24 @@ impl GeomPiece {
 }
 
 fn parse_fixed_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
-    match r.next().unwrap().as_rule() {
+    let rn = r.next().unwrap();
+    match rn.as_rule() {
         Rule::single_len => {
-            if let Some(len_val) = r.next() {
-                return GeomLen::FixedLen(len_val.as_str().parse::<u32>().unwrap());
-            }
+            return GeomLen::FixedLen(rn.as_str().parse::<u32>().unwrap());
         }
         _ => todo!()
     }
-    GeomLen::Unbounded
 }
 
 fn parse_ranged_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
-    match r.next().unwrap().as_rule() {
+    let rn = r.next().unwrap();
+    match rn.as_rule() {
         Rule::len_range => {
-            if let Some(len_range) = r.next() {
-                if let Some((ls, ll)) = r.as_str().split_once('-') {
-                    return GeomLen::LenRange(
-                        ls.parse::<u32>().unwrap(),
-                        ll.parse::<u32>().unwrap(),
-                    );
-                }
+            if let Some((ls, ll)) = rn.as_str().split_once('-') {
+                return GeomLen::LenRange(
+                    ls.parse::<u32>().unwrap(),
+                    ll.parse::<u32>().unwrap(),
+                );
             }
         }
         _ => todo!()
@@ -104,15 +101,14 @@ fn parse_ranged_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
 }
 
 fn parse_fixed_seq(r: &mut pest::iterators::Pairs<Rule>) -> NucStr {
-    match r.next().unwrap().as_rule() {
+    let rn = r.next().unwrap();
+    match rn.as_rule() {
         Rule::nucstr => {
-            if let Some(seq_str) = r.next() {
-                return NucStr::Seq(seq_str.as_str().to_owned());
-            }
+            let seq_str = rn.as_str();
+            return NucStr::Seq(seq_str.to_owned());
         }
         _ => todo!()
     }
-    NucStr::Seq(String::from("XXX"))
 }
 
 fn parse_ranged_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
@@ -135,7 +131,6 @@ fn parse_ranged_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
         }
         _ => unimplemented!(),
     }
-    GeomPiece::Discard(GeomLen::Unbounded)
 }
 
 fn parse_fixed_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
@@ -162,7 +157,6 @@ fn parse_fixed_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
         }
         _ => unimplemented!(),
     };
-    GeomPiece::Discard(GeomLen::Unbounded)
 }
 
 fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
@@ -176,15 +170,17 @@ fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
 }
 
 pub fn parse_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
+    dbg!("r.as_rule = {:#?}", r.as_rule());
     match r.as_rule() {
         Rule::fixed_segment => {
             return parse_fixed_segment(r.into_inner().next().unwrap());
         }
+        Rule::fixed_seq_segment => {
+            let fseq = parse_fixed_seq(&mut r.into_inner());
+            return GeomPiece::Fixed(fseq);
+        }
         Rule::ranged_segment => {
             return parse_ranged_segment(r.into_inner().next().unwrap());
-        }
-        Rule::bounded_segment => {
-            return parse_bounded_segment(r.into_inner().next().unwrap());
         }
         Rule::unbounded_segment => {
             return parse_unbounded_segment(r.into_inner().next().unwrap());

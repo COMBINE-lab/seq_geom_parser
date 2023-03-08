@@ -1,8 +1,9 @@
 use seq_geom_parser::{FragmentGeomDesc, PiscemGeomDesc, SalmonSeparateGeomDesc};
 
 #[test]
-fn test_parse_piscem() {
-    let arg = "1{b[16-18]u[12]x:}2{r:}";
+#[should_panic]
+fn test_parse_piscem_simple() {
+    let arg = "1{b[16]u[12]x:}2{r:}";
     match FragmentGeomDesc::try_from(arg) {
         Ok(frag_desc) => {
             let piscem_desc =
@@ -23,10 +24,34 @@ fn test_parse_piscem() {
 }
 
 #[test]
+fn test_parse_piscem_complex() {
+    let arg = "1{b[16-18]f[ACG]u[12]x:}2{r:}";
+    match FragmentGeomDesc::try_from(arg) {
+        Ok(frag_desc) => {
+            dbg!("frag_desc = {:#?}", &frag_desc);
+            let piscem_desc =
+                PiscemGeomDesc::from_geom_pieces(&frag_desc.read1_desc, &frag_desc.read2_desc);
+
+            assert_eq!(
+                piscem_desc,
+                PiscemGeomDesc {
+                    read1_desc: "{b[16-18]f[ACG]u[12]x:}".to_string(),
+                    read2_desc: "{r:}".to_string()
+                }
+            );
+        }
+        Err(e) => {
+            panic!("Failed to parse geometry {}", e);
+        }
+    };
+}
+
+#[test]
 fn test_salmon_piscem() {
     let arg = "1{b[16]u[12]x:}2{r:}";
     match FragmentGeomDesc::try_from(arg) {
         Ok(frag_desc) => {
+            dbg!("{:?}", &frag_desc);
             let salmon_desc = SalmonSeparateGeomDesc::from_geom_pieces(
                 &frag_desc.read1_desc,
                 &frag_desc.read2_desc,

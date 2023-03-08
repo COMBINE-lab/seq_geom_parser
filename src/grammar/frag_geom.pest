@@ -27,7 +27,7 @@ ranged_segment = {
     (ranged_umi_segment | ranged_read_segment | ranged_barcode_segment | ranged_discard_segment)
 }
 
-bounded_segment = {
+bounded_segment = _{
     (fixed_segment | (ranged_segment ~ fixed_seq_segment) | (unbounded_segment ~ fixed_seq_segment))
 }
 
