@@ -1,30 +1,43 @@
-read_num = { "1" | "2" }
-single_len = { ASCII_DIGIT+ }
-len_range = @{ ASCII_DIGIT+ ~ "-" ~ ASCII_DIGIT+ }
-len = { (len_range | single_len) }
-nucstr = { ("A" | "C" | "G" | "T")+ }
-bounded_barcode_segment = { "b[" ~ len ~ "]" }
-bounded_umi_segment = { "u[" ~ len ~ "]" }
-bounded_fixedseq_segment = { "f[" ~ nucstr ~ "]" }
-bounded_read_segment = { "r[" ~ len ~ "]" }
-bounded_discard_segment = { "x[" ~ len ~ "]" }
+read_num   =  { "1" | "2" }
+single_len =  { ASCII_DIGIT+ }
+len_range  = @{ ASCII_DIGIT+ ~ "-" ~ ASCII_DIGIT+ }
+nucstr     =  { ("A" | "C" | "G" | "T")+ }
+
+fixed_barcode_segment = { "b[" ~ single_len ~ "]" }
+fixed_umi_segment     = { "u[" ~ single_len ~ "]" }
+fixed_seq_segment     = { "f[" ~ nucstr ~ "]" }
+fixed_read_segment    = { "r[" ~ single_len ~ "]" }
+fixed_discard_segment = { "x[" ~ single_len ~ "]" }
+
+ranged_barcode_segment = { "b[" ~ len_range ~ "]" }
+ranged_umi_segment     = { "u[" ~ len_range ~ "]" }
+ranged_read_segment    = { "r[" ~ len_range ~ "]" }
+ranged_discard_segment = { "x[" ~ len_range ~ "]" }
+
 unbounded_barcode_segment = { "b:" }
-unbounded_umi_segment = { "u:" }
-unbounded_read_segment = { "r:" }
+unbounded_umi_segment     = { "u:" }
+unbounded_read_segment    = { "r:" }
 unbounded_discard_segment = { "x:" }
 
-bounded_segment = { (bounded_umi_segment |
-bounded_read_segment |
-bounded_barcode_segment |
-bounded_fixedseq_segment |
-bounded_discard_segment) }
+fixed_segment = {
+    (fixed_umi_segment | fixed_read_segment | fixed_barcode_segment | fixed_seq_segment | fixed_discard_segment)
+}
 
-unbounded_segment = { (unbounded_umi_segment |
-unbounded_read_segment |
-unbounded_barcode_segment |
-unbounded_discard_segment) }
+ranged_segment = {
+    (ranged_umi_segment | ranged_read_segment | ranged_barcode_segment | ranged_discard_segment)
+}
 
-read_desc = { "{" ~ ((unbounded_segment) | (bounded_segment)+ ~ (unbounded_segment){0,1}) ~ "}" }
-read_1_desc = { "1" ~ read_desc }
-read_2_desc = { "2" ~ read_desc }
-frag_desc = _{ read_1_desc ~ read_2_desc }
+bounded_segment = {
+    (fixed_segment | (ranged_segment ~ fixed_seq_segment) | (unbounded_segment ~ fixed_seq_segment))
+}
+
+unbounded_segment = {
+    (unbounded_umi_segment | unbounded_read_segment | unbounded_barcode_segment | unbounded_discard_segment)
+}
+
+read_desc = {
+    "{" ~ ((bounded_segment)+ ~ (ranged_segment | unbounded_segment){0, 1} | unbounded_segment | ranged_segment) ~ "}"
+}
+read_1_desc =  { "1" ~ read_desc }
+read_2_desc =  { "2" ~ read_desc }
+frag_desc   = _{ read_1_desc ~ read_2_desc }

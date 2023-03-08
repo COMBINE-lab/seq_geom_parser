@@ -14,8 +14,8 @@ pub struct FragGeomParser;
 
 #[derive(Debug, Copy, Clone)]
 pub enum GeomLen {
-    Bounded(u32),
-    BoundedRange(u32, u32),
+    FixedLen(u32),
+    LenRange(u32, u32),
     Unbounded,
 }
 
@@ -36,6 +36,18 @@ pub enum GeomPiece {
 }
 
 impl GeomPiece {
+    /// This method returns true if the current GeomPiece has a fixed length
+    /// (either FixedLen or a Fixed(NucStr)), and false otherwise.
+    pub fn is_fixed_len(&self) -> bool {
+        matches!(
+            self,
+            GeomPiece::Umi(GeomLen::FixedLen(_))
+                | GeomPiece::Barcode(GeomLen::FixedLen(_))
+                | GeomPiece::ReadSeq(GeomLen::FixedLen(_))
+                | GeomPiece::Discard(GeomLen::FixedLen(_))
+                | GeomPiece::Fixed(NucStr::Seq(_))
+        )
+    }
     /// This method returns true if the current GeomPiece has a bounded length
     /// (either Bounded, BoundedRange, or a Fixed(NucStr)), and false otherwise.
     pub fn is_bounded(&self) -> bool {
@@ -54,65 +66,99 @@ impl GeomPiece {
         matches!(
             self,
             GeomPiece::Fixed(NucStr::Seq(_))
-                | GeomPiece::Umi(GeomLen::BoundedRange(_, _))
-                | GeomPiece::Barcode(GeomLen::BoundedRange(_, _))
-                | GeomPiece::ReadSeq(GeomLen::BoundedRange(_, _))
-                | GeomPiece::Discard(GeomLen::BoundedRange(_, _))
+                | GeomPiece::Umi(GeomLen::LenRange(_, _))
+                | GeomPiece::Barcode(GeomLen::LenRange(_, _))
+                | GeomPiece::ReadSeq(GeomLen::LenRange(_, _))
+                | GeomPiece::Discard(GeomLen::LenRange(_, _))
         )
     }
 }
 
-fn parse_bounded_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
-    let rule_pair = r.next().unwrap();
-    match rule_pair.as_rule() {
-        Rule::len => {
-            let mut len_pairs = rule_pair.into_inner();
-            match len_pairs.peek().unwrap().as_rule() {
-                Rule::single_len => {
-                    if let Some(len_val) = len_pairs.next() {
-                        return GeomLen::Bounded(len_val.as_str().parse::<u32>().unwrap());
-                    }
-                }
-                Rule::len_range => {
-                    if let Some(len_range) = len_pairs.next() {
-                        if let Some((ls, ll)) = len_range.as_str().split_once('-') {
-                            return GeomLen::BoundedRange(
-                                ls.parse::<u32>().unwrap(),
-                                ll.parse::<u32>().unwrap(),
-                            );
-                        }
-                    }
-                }
-                _ => todo!(),
+fn parse_fixed_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
+    match r.next().unwrap().as_rule() {
+        Rule::single_len => {
+            if let Some(len_val) = r.next() {
+                return GeomLen::FixedLen(len_val.as_str().parse::<u32>().unwrap());
             }
         }
-        _ => todo!(),
+        _ => todo!()
     }
-    GeomLen::Bounded(0)
+    GeomLen::Unbounded
 }
 
-fn parse_bounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
+fn parse_ranged_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
+    match r.next().unwrap().as_rule() {
+        Rule::len_range => {
+            if let Some(len_range) = r.next() {
+                if let Some((ls, ll)) = r.as_str().split_once('-') {
+                    return GeomLen::LenRange(
+                        ls.parse::<u32>().unwrap(),
+                        ll.parse::<u32>().unwrap(),
+                    );
+                }
+            }
+        }
+        _ => todo!()
+    }
+    GeomLen::Unbounded
+}
+
+fn parse_fixed_seq(r: &mut pest::iterators::Pairs<Rule>) -> NucStr {
+    match r.next().unwrap().as_rule() {
+        Rule::nucstr => {
+            if let Some(seq_str) = r.next() {
+                return NucStr::Seq(seq_str.as_str().to_owned());
+            }
+        }
+        _ => todo!()
+    }
+    NucStr::Seq(String::from("XXX"))
+}
+
+fn parse_ranged_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
-        Rule::bounded_umi_segment => {
-            let gl = parse_bounded_len(&mut r.into_inner());
+        Rule::ranged_umi_segment => {
+            let gl = parse_ranged_len(&mut r.into_inner());
             return GeomPiece::Umi(gl);
         }
-        Rule::bounded_barcode_segment => {
-            let gl = parse_bounded_len(&mut r.into_inner());
+        Rule::ranged_barcode_segment => {
+            let gl = parse_ranged_len(&mut r.into_inner());
             return GeomPiece::Barcode(gl);
         }
-        Rule::bounded_discard_segment => {
-            let gl = parse_bounded_len(&mut r.into_inner());
+        Rule::ranged_discard_segment => {
+            let gl = parse_ranged_len(&mut r.into_inner());
             return GeomPiece::Discard(gl);
         }
-        Rule::bounded_read_segment => {
-            let gl = parse_bounded_len(&mut r.into_inner());
+        Rule::ranged_read_segment => {
+            let gl = parse_ranged_len(&mut r.into_inner());
             return GeomPiece::ReadSeq(gl);
         }
-        Rule::bounded_fixedseq_segment => {
-            if let Some(nuc_seq) = r.into_inner().next() {
-                return GeomPiece::Fixed(NucStr::Seq(nuc_seq.as_str().to_owned()));
-            }
+        _ => unimplemented!(),
+    }
+    GeomPiece::Discard(GeomLen::Unbounded)
+}
+
+fn parse_fixed_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
+    match r.as_rule() {
+        Rule::fixed_umi_segment => {
+            let gl = parse_fixed_len(&mut r.into_inner());
+            return GeomPiece::Umi(gl);
+        }
+        Rule::fixed_barcode_segment => {
+            let gl = parse_fixed_len(&mut r.into_inner());
+            return GeomPiece::Barcode(gl);
+        }
+        Rule::fixed_discard_segment => {
+            let gl = parse_fixed_len(&mut r.into_inner());
+            return GeomPiece::Discard(gl);
+        }
+        Rule::fixed_read_segment => {
+            let gl = parse_fixed_len(&mut r.into_inner());
+            return GeomPiece::ReadSeq(gl);
+        }
+        Rule::fixed_seq_segment => {
+            let fseq = parse_fixed_seq(&mut r.into_inner());
+            return GeomPiece::Fixed(fseq);
         }
         _ => unimplemented!(),
     };
@@ -131,6 +177,12 @@ fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
 
 pub fn parse_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
+        Rule::fixed_segment => {
+            return parse_fixed_segment(r.into_inner().next().unwrap());
+        }
+        Rule::ranged_segment => {
+            return parse_ranged_segment(r.into_inner().next().unwrap());
+        }
         Rule::bounded_segment => {
             return parse_bounded_segment(r.into_inner().next().unwrap());
         }
@@ -182,28 +234,28 @@ fn as_piscem_geom_desc_single_read(geom_pieces: &[GeomPiece]) -> String {
     let mut rep = String::from("{");
     for gp in geom_pieces {
         match gp {
-            GeomPiece::Discard(GeomLen::Bounded(x)) => {
+            GeomPiece::Discard(GeomLen::FixedLen(x)) => {
                 rep += &format!("x[{}]", x);
             }
-            GeomPiece::Barcode(GeomLen::Bounded(x)) => {
+            GeomPiece::Barcode(GeomLen::FixedLen(x)) => {
                 rep += &format!("b[{}]", x);
             }
-            GeomPiece::Umi(GeomLen::Bounded(x)) => {
+            GeomPiece::Umi(GeomLen::FixedLen(x)) => {
                 rep += &format!("u[{}]", x);
             }
-            GeomPiece::ReadSeq(GeomLen::Bounded(x)) => {
+            GeomPiece::ReadSeq(GeomLen::FixedLen(x)) => {
                 rep += &format!("r[{}]", x);
             }
-            GeomPiece::Discard(GeomLen::BoundedRange(l, h)) => {
+            GeomPiece::Discard(GeomLen::LenRange(l, h)) => {
                 rep += &format!("x[{}-{}]", l, h);
             }
-            GeomPiece::Barcode(GeomLen::BoundedRange(l, h)) => {
+            GeomPiece::Barcode(GeomLen::LenRange(l, h)) => {
                 rep += &format!("b[{}-{}]", l, h);
             }
-            GeomPiece::Umi(GeomLen::BoundedRange(l, h)) => {
+            GeomPiece::Umi(GeomLen::LenRange(l, h)) => {
                 rep += &format!("u[{}-{}]", l, h);
             }
-            GeomPiece::ReadSeq(GeomLen::BoundedRange(l, h)) => {
+            GeomPiece::ReadSeq(GeomLen::LenRange(l, h)) => {
                 rep += &format!("r[{}-{}]", l, h);
             }
             GeomPiece::Fixed(NucStr::Seq(s)) => {
@@ -306,16 +358,16 @@ fn as_salmon_desc_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String,
 
     for gp in geom_pieces {
         match gp {
-            GeomPiece::Barcode(GeomLen::Bounded(x)) => {
+            GeomPiece::Barcode(GeomLen::FixedLen(x)) => {
                 append_interval_bounded(&mut offset, *x, &mut bc_intervals);
             }
-            GeomPiece::Umi(GeomLen::Bounded(x)) => {
+            GeomPiece::Umi(GeomLen::FixedLen(x)) => {
                 append_interval_bounded(&mut offset, *x, &mut umi_intervals);
             }
-            GeomPiece::ReadSeq(GeomLen::Bounded(x)) => {
+            GeomPiece::ReadSeq(GeomLen::FixedLen(x)) => {
                 append_interval_bounded(&mut offset, *x, &mut read_intervals);
             }
-            GeomPiece::Discard(GeomLen::Bounded(x)) => {
+            GeomPiece::Discard(GeomLen::FixedLen(x)) => {
                 offset += x;
             }
             GeomPiece::Fixed(NucStr::Seq(_s)) => {
