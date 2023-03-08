@@ -49,7 +49,3 @@ read_desc = {
 read_1_desc = { "1" ~ read_desc }
 read_2_desc = { "2" ~ read_desc }
 frag_desc = _{ SOI ~ read_1_desc ~ read_2_desc ~ EOI}
-
-//frag_desc = { SOI ~ read_1_desc ~ read_2_desc ~ EOI }
-//read_1_desc = { "1" ~ read_desc }
-//read_2_desc = { "2" ~ read_desc }
