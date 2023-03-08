@@ -4,7 +4,7 @@ bclose = _{ "]" }
 rsep = _{ "-" }
 usep = _{ ":" }
 dopen = _{ "{" }
-dclose = _{ "} }
+dclose = _{ "}" }
 
 len = _{ len_range | single_len }
   len_range = { ASCII_DIGIT+ ~ rsep ~ ASCII_DIGIT+ }
