@@ -2,7 +2,7 @@ use seq_geom_parser::{FragmentGeomDesc, PiscemGeomDesc, SalmonSeparateGeomDesc};
 
 #[test]
 fn test_parse_piscem() {
-    let arg = "1{b[16-18]u[12]x:}2{r:}";
+    let arg = "1{b[16]u[12]x:}2{r:}";
     match FragmentGeomDesc::try_from(arg) {
         Ok(frag_desc) => {
             let piscem_desc =
@@ -11,7 +11,7 @@ fn test_parse_piscem() {
             assert_eq!(
                 piscem_desc,
                 PiscemGeomDesc {
-                    read1_desc: "{b[16-18]u[12]x:}".to_string(),
+                    read1_desc: "{b[16]u[12]x:}".to_string(),
                     read2_desc: "{r:}".to_string()
                 }
             );

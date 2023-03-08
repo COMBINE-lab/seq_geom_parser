@@ -457,6 +457,7 @@ impl<'a> TryFrom<&'a str> for FragmentGeomDesc {
                                     }
                                 }
                             }
+                            Rule::EOI => (),
                             _ => unreachable!(),
                         };
                     }

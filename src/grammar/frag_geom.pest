@@ -1,4 +1,4 @@
-# hidden tokens
+// hidden tokens
 bopen = _{ "[" }
 bclose = _{ "]" }
 rsep = _{ "-" }
@@ -6,9 +6,9 @@ usep = _{ ":" }
 dopen = _{ "{" }
 dclose = _{ "}" }
 
-len = _{ len_range | single_len }
-  len_range = { ASCII_DIGIT+ ~ rsep ~ ASCII_DIGIT+ }
-  single_len = { ASCII_DIGIT+ }
+len = { len_range | single_len }
+len_range = { ASCII_DIGIT+ ~ rsep ~ ASCII_DIGIT+ }
+single_len = { ASCII_DIGIT+ }
 
 bounded_segment = { 
   bounded_umi_segment |
@@ -17,12 +17,12 @@ bounded_segment = {
   bounded_fixedseq_segment |
   bounded_discard_segment 
 }
-  bounded_umi_segment = { "u" ~ bopen ~ len ~ bclose }
-  bounded_read_segment = { "r" ~ bopen ~ len ~ bclose }
-  bounded_barcode_segment = { "b" ~ bopen ~ len ~ bclose }
-  bounded_fixedseq_segment = { "f" ~ bopen ~ nucseq ~ bclose }
-    nucseq = { ("A" | "C" | "G" | "T")+ }
-  bounded_discard_segment = { "x" ~ bopen ~ len ~ bclose }
+bounded_umi_segment = { "u" ~ bopen ~ len ~ bclose }
+bounded_read_segment = { "r" ~ bopen ~ len ~ bclose }
+bounded_barcode_segment = { "b" ~ bopen ~ len ~ bclose }
+bounded_fixedseq_segment = { "f" ~ bopen ~ nucseq ~ bclose }
+nucseq = { ("A" | "C" | "G" | "T")+ }
+bounded_discard_segment = { "x" ~ bopen ~ len ~ bclose }
 
 unbounded_segment = {
   unbounded_umi_segment |
@@ -30,13 +30,13 @@ unbounded_segment = {
   unbounded_barcode_segment |
   unbounded_discard_segment
 }
-  unbounded_umi_segment = { "u" ~ usep }
-  unbounded_read_segment = { "r" ~ usep }
-  unbounded_barcode_segment = { "b" ~ usep }
-  unbounded_discard_segment = { "x" ~ usep }
+unbounded_umi_segment = { "u" ~ usep }
+unbounded_read_segment = { "r" ~ usep }
+unbounded_barcode_segment = { "b" ~ usep }
+unbounded_discard_segment = { "x" ~ usep }
 
 read_desc = { dopen ~ ( unbounded_segment | ( bounded_segment+ ~ unbounded_segment? ) ) ~ dclose }
-frag_desc = { SOI ~ read_1_desc ~ read_2_desc ~ EOI }
-  read_1_desc = ${ "1" ~ read_desc }
-  read_2_desc = ${ "2" ~ read_desc }
+frag_desc = _{ SOI ~ read_1_desc ~ read_2_desc ~ EOI }
+read_1_desc = ${ "1" ~ read_desc }
+read_2_desc = ${ "2" ~ read_desc }
 
