@@ -36,7 +36,7 @@ unbounded_segment = {
   unbounded_discard_segment = { "x" ~ usep }
 
 read_desc = { dopen ~ ( unbounded_segment | ( bounded_segment+ ~ unbounded_segment? ) ) ~ dclose }
-frag_desc = _{ read_1_desc ~ read_2_desc }
+frag_desc = { read_1_desc ~ read_2_desc }
   read_1_desc = ${ "1" ~ read_desc }
   read_2_desc = ${ "2" ~ read_desc }
 
