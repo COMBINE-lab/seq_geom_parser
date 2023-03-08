@@ -26,7 +26,6 @@ fn test_parse_format_complex() {
     };
 }
 
-
 #[test]
 fn test_parse_piscem_simple() {
     let arg = "1{b[16]u[12]x:}2{r:}";
