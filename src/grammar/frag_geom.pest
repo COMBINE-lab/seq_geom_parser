@@ -1,30 +1,42 @@
-read_num = { "1" | "2" }
-single_len = { ASCII_DIGIT+ }
-len_range = @{ ASCII_DIGIT+ ~ "-" ~ ASCII_DIGIT+ }
-len = { (len_range | single_len) }
-nucstr = { ("A" | "C" | "G" | "T")+ }
-bounded_barcode_segment = { "b[" ~ len ~ "]" }
-bounded_umi_segment = { "u[" ~ len ~ "]" }
-bounded_fixedseq_segment = { "f[" ~ nucstr ~ "]" }
-bounded_read_segment = { "r[" ~ len ~ "]" }
-bounded_discard_segment = { "x[" ~ len ~ "]" }
-unbounded_barcode_segment = { "b:" }
-unbounded_umi_segment = { "u:" }
-unbounded_read_segment = { "r:" }
-unbounded_discard_segment = { "x:" }
+# hidden tokens
+bopen = _{ "[" }
+bclose = _{ "]" }
+rsep = _{ "-" }
+usep = _{ ":" }
+dopen = _{ "{" }
+dclose = _{ "}" }
 
-bounded_segment = { (bounded_umi_segment |
-bounded_read_segment |
-bounded_barcode_segment |
-bounded_fixedseq_segment |
-bounded_discard_segment) }
+len = _{ len_range | single_len }
+  len_range = { ASCII_DIGIT+ ~ rsep ~ ASCII_DIGIT+ }
+  single_len = { ASCII_DIGIT+ }
 
-unbounded_segment = { (unbounded_umi_segment |
-unbounded_read_segment |
-unbounded_barcode_segment |
-unbounded_discard_segment) }
+bounded_segment = { 
+  bounded_umi_segment |
+  bounded_read_segment |
+  bounded_barcode_segment |
+  bounded_fixedseq_segment |
+  bounded_discard_segment 
+}
+  bounded_umi_segment = { "u" ~ bopen ~ len ~ bclose }
+  bounded_read_segment = { "r" ~ bopen ~ len ~ bclose }
+  bounded_barcode_segment = { "b" ~ bopen ~ len ~ bclose }
+  bounded_fixedseq_segment = { "f" ~ bopen ~ nucseq ~ bclose }
+    nucseq = { ("A" | "C" | "G" | "T")+ }
+  bounded_discard_segment = { "x" ~ bopen ~ len ~ bclose }
 
-read_desc = { "{" ~ ((unbounded_segment) | (bounded_segment)+ ~ (unbounded_segment){0,1}) ~ "}" }
-read_1_desc = { "1" ~ read_desc }
-read_2_desc = { "2" ~ read_desc }
-frag_desc = _{ read_1_desc ~ read_2_desc }
+unbounded_segment = {
+  unbounded_umi_segment |
+  unbounded_read_segment |
+  unbounded_barcode_segment |
+  unbounded_discard_segment
+}
+  unbounded_umi_segment = { "u" ~ usep }
+  unbounded_read_segment = { "r" ~ usep }
+  unbounded_barcode_segment = { "b" ~ usep }
+  unbounded_discard_segment = { "x" ~ usep }
+
+read_desc = { dopen ~ ( unbounded_segment | ( bounded_segment+ ~ unbounded_segment? ) ) ~ dclose }
+frag_desc = { SOI ~ read_1_desc ~ read_2_desc ~ EOI }
+  read_1_desc = ${ "1" ~ read_desc }
+  read_2_desc = ${ "2" ~ read_desc }
+
