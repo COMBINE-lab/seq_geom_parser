@@ -1,2 +1,3 @@
-# seq_geom_parser
-Testing out rust parsing of single-cell library geometry specifications
+# seq geom parser
+
+Parsing of single-cell library geometry formats using Rust.
