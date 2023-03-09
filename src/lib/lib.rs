@@ -12,6 +12,8 @@ use std::fmt;
 #[grammar = "grammar/frag_geom.pest"] // relative to src
 pub struct FragGeomParser;
 
+/// The types of lengths that a piece of
+/// geometry can have.
 #[derive(Debug, Copy, Clone)]
 pub enum GeomLen {
     FixedLen(u32),
@@ -19,6 +21,8 @@ pub enum GeomLen {
     Unbounded,
 }
 
+/// Represents the sequence held by a fixed
+/// sequence anchor.
 #[derive(Debug, Clone)]
 pub enum NucStr {
     Seq(String),
@@ -107,7 +111,7 @@ fn parse_fixed_len_as_u32(r: &mut pest::iterators::Pairs<Rule>) -> u32 {
         Rule::single_len => {
             return rn.as_str().parse::<u32>().unwrap();
         }
-        _ => todo!(),
+        r => unimplemented!("Expected rule 'single_len', but found {:?}", r),
     }
 }
 
@@ -128,7 +132,7 @@ fn parse_ranged_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
             let h = parse_fixed_len_as_u32(&mut ri);
             return GeomLen::LenRange(l, h);
         }
-        _ => todo!(),
+        r => unimplemented!("expected rule 'len_range' but found {:?}", r),
     }
 }
 
@@ -141,7 +145,7 @@ fn parse_fixed_seq(r: &mut pest::iterators::Pairs<Rule>) -> NucStr {
             let seq_str = rn.as_str();
             return NucStr::Seq(seq_str.to_owned());
         }
-        _ => todo!(),
+        r => unimplemented!("expected rule 'nucstr' but found {:?}", r),
     }
 }
 
@@ -389,7 +393,7 @@ fn as_salmon_desc_separate_helper(geom_pieces: &[GeomPiece]) -> (String, String,
                 append_interval_unbounded(&mut offset, &mut read_intervals);
             }
             GeomPiece::Discard(GeomLen::Unbounded) => {}
-            _ => todo!(),
+            r => unimplemented!("encountered unexpected GeomPiece {:?}", r),
         };
     }
 
