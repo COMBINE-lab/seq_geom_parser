@@ -135,7 +135,7 @@ fn test_fail_on_ambig_geo() {
     };
 }
 
-/// Parsing a bad geometry (a proper geometry followed by nonsense) 
+/// Parsing a bad geometry (a proper geometry followed by nonsense)
 /// description string should lead to an `Err` returned from the parser.
 #[test]
 fn test_fail_on_superfluous_input() {
