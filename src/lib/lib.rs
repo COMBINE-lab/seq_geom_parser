@@ -151,7 +151,7 @@ fn parse_ranged_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
             let mut ri = rn.into_inner();
             let l = parse_fixed_len_as_u32(&mut ri);
             let h = parse_fixed_len_as_u32(&mut ri);
-            return GeomLen::LenRange(l, h);
+            GeomLen::LenRange(l, h)
         }
         r => unimplemented!("expected rule 'len_range' but found {:?}", r),
     }
@@ -164,7 +164,7 @@ fn parse_fixed_seq(r: &mut pest::iterators::Pairs<Rule>) -> NucStr {
     match rn.as_rule() {
         Rule::nucstr => {
             let seq_str = rn.as_str();
-            return NucStr::Seq(seq_str.to_owned());
+            NucStr::Seq(seq_str.to_owned())
         }
         r => unimplemented!("expected rule 'nucstr' but found {:?}", r),
     }
@@ -176,19 +176,19 @@ fn parse_ranged_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::ranged_umi_segment => {
             let gl = parse_ranged_len(&mut r.into_inner());
-            return GeomPiece::Umi(gl);
+            GeomPiece::Umi(gl)
         }
         Rule::ranged_barcode_segment => {
             let gl = parse_ranged_len(&mut r.into_inner());
-            return GeomPiece::Barcode(gl);
+            GeomPiece::Barcode(gl)
         }
         Rule::ranged_discard_segment => {
             let gl = parse_ranged_len(&mut r.into_inner());
-            return GeomPiece::Discard(gl);
+            GeomPiece::Discard(gl)
         }
         Rule::ranged_read_segment => {
             let gl = parse_ranged_len(&mut r.into_inner());
-            return GeomPiece::ReadSeq(gl);
+            GeomPiece::ReadSeq(gl)
         }
         _ => unimplemented!(),
     }
@@ -200,26 +200,26 @@ fn parse_fixed_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::fixed_umi_segment => {
             let gl = parse_fixed_len(&mut r.into_inner());
-            return GeomPiece::Umi(gl);
+            GeomPiece::Umi(gl)
         }
         Rule::fixed_barcode_segment => {
             let gl = parse_fixed_len(&mut r.into_inner());
-            return GeomPiece::Barcode(gl);
+            GeomPiece::Barcode(gl)
         }
         Rule::fixed_discard_segment => {
             let gl = parse_fixed_len(&mut r.into_inner());
-            return GeomPiece::Discard(gl);
+            GeomPiece::Discard(gl)
         }
         Rule::fixed_read_segment => {
             let gl = parse_fixed_len(&mut r.into_inner());
-            return GeomPiece::ReadSeq(gl);
+            GeomPiece::ReadSeq(gl)
         }
         Rule::fixed_seq_segment => {
             let fseq = parse_fixed_seq(&mut r.into_inner());
-            return GeomPiece::Fixed(fseq);
+            GeomPiece::Fixed(fseq)
         }
         _ => unimplemented!(),
-    };
+    }
 }
 
 /// Parses a `GeomPiece` that represents an "unbounded segment", that is a
@@ -241,21 +241,15 @@ fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
 /// `GeomPiece`.
 pub fn parse_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
-        Rule::fixed_segment => {
-            return parse_fixed_segment(r.into_inner().next().unwrap());
-        }
+        Rule::fixed_segment => parse_fixed_segment(r.into_inner().next().unwrap()),
         Rule::fixed_seq_segment => {
             let fseq = parse_fixed_seq(&mut r.into_inner());
-            return GeomPiece::Fixed(fseq);
+            GeomPiece::Fixed(fseq)
         }
-        Rule::ranged_segment => {
-            return parse_ranged_segment(r.into_inner().next().unwrap());
-        }
-        Rule::unbounded_segment => {
-            return parse_unbounded_segment(r.into_inner().next().unwrap());
-        }
+        Rule::ranged_segment => parse_ranged_segment(r.into_inner().next().unwrap()),
+        Rule::unbounded_segment => parse_unbounded_segment(r.into_inner().next().unwrap()),
         _ => unimplemented!(),
-    };
+    }
 }
 
 /// This trait says that a given implementor is able to properly add itself
