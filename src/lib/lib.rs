@@ -27,8 +27,13 @@ pub struct FragGeomParser;
 /// geometry can have.
 #[derive(Debug, Copy, Clone)]
 pub enum GeomLen {
+    /// This piece of geometry has a single fixed length
     FixedLen(u32),
+    /// This piece of geometry has some length between
+    /// a provided lower and upper bound
     LenRange(u32, u32),
+    /// This piece of geometry has a length whose bound is
+    /// not known at geometry specification time
     Unbounded,
 }
 
@@ -43,10 +48,15 @@ pub enum NucStr {
 /// currently support.
 #[derive(Debug, Clone)]
 pub enum GeomPiece {
+    /// A cellular barcode
     Barcode(GeomLen),
+    /// A unique molecular identifier
     Umi(GeomLen),
+    /// Sequence that will be discarded
     Discard(GeomLen),
+    /// Biological read sequence
     ReadSeq(GeomLen),
+    /// A fixed sequence anchor / motif
     Fixed(NucStr),
 }
 
@@ -256,13 +266,19 @@ pub trait AppendToCmdArgs {
 
 // ======== for piscem
 
+/// This struct holds a [`piscem`](https://github.com/COMBINE-lab/piscem) compatible
+/// description of the fragment geometry specification.
 #[derive(Debug, Eq, PartialEq)]
 pub struct PiscemGeomDesc {
+    /// The `piscem` format specification for read 1.
     pub read1_desc: String,
+    /// The `piscem` format specification for read 2.
     pub read2_desc: String,
 }
 
 impl AppendToCmdArgs for PiscemGeomDesc {
+    /// Adds this `piscem` format geometry specification to the command
+    /// given by `cmd`.
     fn append(&self, cmd: &mut std::process::Command) {
         let geo_desc = format!("1{}2{}", self.read1_desc, self.read2_desc);
         cmd.args(["--geometry", geo_desc.as_str()]);
@@ -279,6 +295,9 @@ fn as_piscem_geom_desc_single_read(geom_pieces: &[GeomPiece]) -> String {
 }
 
 impl PiscemGeomDesc {
+    /// This constructor builds the `piscem` format descriptor for this fragment
+    /// library from a slice of the constituent `GeomPiece`s for read 1 (`geom_pieces_r1`)
+    /// and a slice of the `GeomPiece`s for read 2 (`geom_pieces_r2`).
     pub fn from_geom_pieces(geom_pieces_r1: &[GeomPiece], geom_pieces_r2: &[GeomPiece]) -> Self {
         let read1_desc = as_piscem_geom_desc_single_read(geom_pieces_r1);
         let read2_desc = as_piscem_geom_desc_single_read(geom_pieces_r2);
@@ -291,6 +310,8 @@ impl PiscemGeomDesc {
 
 // ======== for salmon
 
+/// This struct holds a [`salmon`](https://github.com/COMBINE-lab/salmon) compatible
+/// description of the fragment geometry specification.
 #[derive(Debug, Eq, PartialEq)]
 pub struct SalmonSeparateGeomDesc {
     pub barcode_desc: String,
@@ -299,6 +320,8 @@ pub struct SalmonSeparateGeomDesc {
 }
 
 impl AppendToCmdArgs for SalmonSeparateGeomDesc {
+    /// Given the `salmon` compatible geometry description, append this description
+    /// to the command `cmd`, assumed to be an invocation of `salmon alevin`.
     fn append(&self, cmd: &mut std::process::Command) {
         cmd.args([
             "--read-geometry",
