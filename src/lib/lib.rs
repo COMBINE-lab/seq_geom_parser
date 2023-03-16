@@ -1,3 +1,14 @@
+//! This is a crate for parsing and interpreting sequence fragment
+//! geometry specifications in the sequence
+//! [fragment geometry description language](https://hackmd.io/@PI7Og0l1ReeBZu_pjQGUQQ/rJMgmvr13) (FGDL).
+//! The FGDL describes how sequenced fragments are laid out, and how different parts of the sequence correspond
+//! to technical tags or to biological sequence.  It provides a standard and unified way to represent
+//! the sequence layouts used in many different sequencing protocols, and is currently developed with
+//! a focus on representing different single-cell sequencing chemistries.
+//!
+//! This crate provides a library for parsing these descriptions, and a set of structures for representing
+//! them in memory, as well as some common traits for transforming and printing them.
+
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
