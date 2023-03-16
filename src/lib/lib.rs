@@ -484,9 +484,13 @@ impl SalmonSeparateGeomDesc {
     }
 }
 
+/// This structure holds our representation of the parsed fragment
+/// geometry description.
 #[derive(Debug)]
 pub struct FragmentGeomDesc {
+    /// The sequence of `GeomPiece`s describing read 1 of this fragment in left-to-right order.
     pub read1_desc: Vec<GeomPiece>,
+    /// The sequence of `GeomPiece`s describing read 2 of this fragment in left-to-right order.
     pub read2_desc: Vec<GeomPiece>,
 }
 
@@ -523,7 +527,7 @@ impl FragmentGeomDesc {
         false
     }
 
-    /// A "complex" geometry is one that contains only fixed length pieces
+    /// A "simple" geometry is one that contains only fixed length pieces
     /// (but doesn't include any fixed seq segments) and unbounded pieces.
     pub fn is_simple_geometry(&self) -> bool {
         !self.is_complex_geometry()
