@@ -13,7 +13,7 @@ extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use pest::Parser;
 
 use std::convert::TryFrom;
@@ -534,59 +534,68 @@ impl FragmentGeomDesc {
     }
 }
 
+fn parse_read_description(read_desc: pest::iterators::Pairs<Rule>) -> Vec<GeomPiece> {
+    let mut read_geom = Vec::<GeomPiece>::new();
+    for rd in read_desc {
+        match rd.as_rule() {
+            Rule::read_desc => {
+                for geom_piece in rd.into_inner() {
+                    read_geom.push(parse_segment(geom_piece));
+                }
+            }
+            _ => unreachable!(),
+        };
+    }
+    read_geom
+}
+
 impl<'a> TryFrom<&'a str> for FragmentGeomDesc {
     type Error = anyhow::Error;
 
+    /// This is the main entry point to obtain a `FragmentGeomDesc` structure.
+    /// This function parses the FGDL description string provided as `arg`, and
+    /// returns either `Ok(FragGeomDesc)`, if the parse is succesful or an
+    /// `anyhow::Error` if the parsing fails.
+    ///
+    /// Currently, the FGDL makes a structural assumption that is reflected in the
+    /// way this function works.  The description string will describe the fragment
+    /// geometry for a fragment consisting of a pair of reads (i.e. currently
+    /// there is no support for single-end reads or fragments containing > 2 reads).
     fn try_from(arg: &'a str) -> Result<Self, Self::Error> {
         match FragGeomParser::parse(Rule::frag_desc, arg) {
             Ok(fragment_desc) => {
-                //println!("{:#?}", parse);
-
-                let mut read1_desc = Vec::<GeomPiece>::new();
-                let mut read2_desc = Vec::<GeomPiece>::new();
+                // Where we'll hold the `GeomPiece`s that constitute the
+                // parse of each read.
+                let mut r1_desc = None;
+                let mut r2_desc = None;
 
                 // Because ident_list is silent, the iterator will contain idents
                 for read_desc in fragment_desc {
-                    // A pair is a combination of the rule which matched and a span of input
-                    /*
-                    println!("Rule:    {:?}", read_desc.as_rule());
-                    println!("Span:    {:?}", read_desc.as_span());
-                    println!("Text:    {}", read_desc.as_str());
-                    */
-
-                    let read_num = match read_desc.as_rule() {
-                        Rule::read_1_desc => 1,
-                        Rule::read_2_desc => 2,
-                        _ => 0,
+                    match read_desc.as_rule() {
+                        Rule::read_1_desc => {
+                            let rd = read_desc.into_inner();
+                            r1_desc = Some(parse_read_description(rd));
+                        }
+                        Rule::read_2_desc => {
+                            let rd = read_desc.into_inner();
+                            r2_desc = Some(parse_read_description(rd));
+                        }
+                        Rule::EOI => {}
+                        e => {
+                            dbg!("{:?}", e);
+                            bail!("Expected to parse a description for read 1, or 2, but didn't find the corresponding rule!")
+                        }
                     };
-                    // at the top-level we have a
-                    // a read 1 desc followed by a read 2 desc
-                    for rd in read_desc.into_inner() {
-                        match rd.as_rule() {
-                            Rule::read_desc => {
-                                for geom_piece in rd.into_inner() {
-                                    match read_num {
-                                        1 => {
-                                            read1_desc.push(parse_segment(geom_piece));
-                                        }
-                                        2 => {
-                                            read2_desc.push(parse_segment(geom_piece));
-                                        }
-                                        _ => {
-                                            println!("cannot add geom piece to read {}", read_num);
-                                        }
-                                    }
-                                }
-                            }
-                            _ => unreachable!(),
-                        };
-                    }
                 }
 
-                Ok(FragmentGeomDesc {
-                    read1_desc,
-                    read2_desc,
-                })
+                if let (Some(read1_desc), Some(read2_desc)) = (r1_desc, r2_desc) {
+                    Ok(FragmentGeomDesc {
+                        read1_desc,
+                        read2_desc,
+                    })
+                } else {
+                    bail!("Was not able to obtain a succesful parse for both read 1 and read 2.")
+                }
             }
             Err(e) => Err(anyhow!(
                 "Could not succesfully parse geometry description {}.\nParse Error : {:#?}",
