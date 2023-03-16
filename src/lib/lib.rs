@@ -534,6 +534,10 @@ impl FragmentGeomDesc {
     }
 }
 
+/// Parse the description of a single read.  It's expected that this function is called
+/// when the enclosing rule matches a rule description.  In that case, this function is
+/// called with the `into_inner` of that Pair.  This function returns a vector containing
+/// the parsed geometry of the input description.
 fn parse_read_description(read_desc: pest::iterators::Pairs<Rule>) -> Vec<GeomPiece> {
     let mut read_geom = Vec::<GeomPiece>::new();
     for rd in read_desc {
