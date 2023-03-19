@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/COMBINE-lab/seq_geom_parser/compare/v0.2.0...v0.2.1) (2023-03-19)
+
+
+### Bug Fixes
+
+* minor bumps ([eaeae61](https://github.com/COMBINE-lab/seq_geom_parser/commit/eaeae6154d34a4dd6a099063c3be823e4f0f3167))
+
 ## [0.2.0](https://github.com/COMBINE-lab/seq_geom_parser/compare/v0.1.3...v0.2.0) (2023-03-09)
 
 
