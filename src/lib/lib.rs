@@ -1,8 +1,19 @@
+//! This is a crate for parsing and interpreting sequence fragment
+//! geometry specifications in the sequence
+//! [fragment geometry description language](https://hackmd.io/@PI7Og0l1ReeBZu_pjQGUQQ/rJMgmvr13) (FGDL).
+//! The FGDL describes how sequenced fragments are laid out, and how different parts of the sequence correspond
+//! to technical tags or to biological sequence.  It provides a standard and unified way to represent
+//! the sequence layouts used in many different sequencing protocols, and is currently developed with
+//! a focus on representing different single-cell sequencing chemistries.
+//!
+//! This crate provides a library for parsing these descriptions, and a set of structures for representing
+//! them in memory, as well as some common traits for transforming and printing them.
+
 extern crate pest;
 #[macro_use]
 extern crate pest_derive;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, bail, Result};
 use pest::Parser;
 
 use std::convert::TryFrom;
@@ -16,8 +27,13 @@ pub struct FragGeomParser;
 /// geometry can have.
 #[derive(Debug, Copy, Clone)]
 pub enum GeomLen {
+    /// This piece of geometry has a single fixed length
     FixedLen(u32),
+    /// This piece of geometry has some length between
+    /// a provided lower and upper bound
     LenRange(u32, u32),
+    /// This piece of geometry has a length whose bound is
+    /// not known at geometry specification time
     Unbounded,
 }
 
@@ -32,10 +48,15 @@ pub enum NucStr {
 /// currently support.
 #[derive(Debug, Clone)]
 pub enum GeomPiece {
+    /// A cellular barcode
     Barcode(GeomLen),
+    /// A unique molecular identifier
     Umi(GeomLen),
+    /// Sequence that will be discarded
     Discard(GeomLen),
+    /// Biological read sequence
     ReadSeq(GeomLen),
+    /// A fixed sequence anchor / motif
     Fixed(NucStr),
 }
 
@@ -130,7 +151,7 @@ fn parse_ranged_len(r: &mut pest::iterators::Pairs<Rule>) -> GeomLen {
             let mut ri = rn.into_inner();
             let l = parse_fixed_len_as_u32(&mut ri);
             let h = parse_fixed_len_as_u32(&mut ri);
-            return GeomLen::LenRange(l, h);
+            GeomLen::LenRange(l, h)
         }
         r => unimplemented!("expected rule 'len_range' but found {:?}", r),
     }
@@ -143,7 +164,7 @@ fn parse_fixed_seq(r: &mut pest::iterators::Pairs<Rule>) -> NucStr {
     match rn.as_rule() {
         Rule::nucstr => {
             let seq_str = rn.as_str();
-            return NucStr::Seq(seq_str.to_owned());
+            NucStr::Seq(seq_str.to_owned())
         }
         r => unimplemented!("expected rule 'nucstr' but found {:?}", r),
     }
@@ -155,19 +176,19 @@ fn parse_ranged_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::ranged_umi_segment => {
             let gl = parse_ranged_len(&mut r.into_inner());
-            return GeomPiece::Umi(gl);
+            GeomPiece::Umi(gl)
         }
         Rule::ranged_barcode_segment => {
             let gl = parse_ranged_len(&mut r.into_inner());
-            return GeomPiece::Barcode(gl);
+            GeomPiece::Barcode(gl)
         }
         Rule::ranged_discard_segment => {
             let gl = parse_ranged_len(&mut r.into_inner());
-            return GeomPiece::Discard(gl);
+            GeomPiece::Discard(gl)
         }
         Rule::ranged_read_segment => {
             let gl = parse_ranged_len(&mut r.into_inner());
-            return GeomPiece::ReadSeq(gl);
+            GeomPiece::ReadSeq(gl)
         }
         _ => unimplemented!(),
     }
@@ -179,26 +200,26 @@ fn parse_fixed_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
         Rule::fixed_umi_segment => {
             let gl = parse_fixed_len(&mut r.into_inner());
-            return GeomPiece::Umi(gl);
+            GeomPiece::Umi(gl)
         }
         Rule::fixed_barcode_segment => {
             let gl = parse_fixed_len(&mut r.into_inner());
-            return GeomPiece::Barcode(gl);
+            GeomPiece::Barcode(gl)
         }
         Rule::fixed_discard_segment => {
             let gl = parse_fixed_len(&mut r.into_inner());
-            return GeomPiece::Discard(gl);
+            GeomPiece::Discard(gl)
         }
         Rule::fixed_read_segment => {
             let gl = parse_fixed_len(&mut r.into_inner());
-            return GeomPiece::ReadSeq(gl);
+            GeomPiece::ReadSeq(gl)
         }
         Rule::fixed_seq_segment => {
             let fseq = parse_fixed_seq(&mut r.into_inner());
-            return GeomPiece::Fixed(fseq);
+            GeomPiece::Fixed(fseq)
         }
         _ => unimplemented!(),
-    };
+    }
 }
 
 /// Parses a `GeomPiece` that represents an "unbounded segment", that is a
@@ -220,21 +241,15 @@ fn parse_unbounded_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
 /// `GeomPiece`.
 pub fn parse_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
     match r.as_rule() {
-        Rule::fixed_segment => {
-            return parse_fixed_segment(r.into_inner().next().unwrap());
-        }
+        Rule::fixed_segment => parse_fixed_segment(r.into_inner().next().unwrap()),
         Rule::fixed_seq_segment => {
             let fseq = parse_fixed_seq(&mut r.into_inner());
-            return GeomPiece::Fixed(fseq);
+            GeomPiece::Fixed(fseq)
         }
-        Rule::ranged_segment => {
-            return parse_ranged_segment(r.into_inner().next().unwrap());
-        }
-        Rule::unbounded_segment => {
-            return parse_unbounded_segment(r.into_inner().next().unwrap());
-        }
+        Rule::ranged_segment => parse_ranged_segment(r.into_inner().next().unwrap()),
+        Rule::unbounded_segment => parse_unbounded_segment(r.into_inner().next().unwrap()),
         _ => unimplemented!(),
-    };
+    }
 }
 
 /// This trait says that a given implementor is able to properly add itself
@@ -245,13 +260,19 @@ pub trait AppendToCmdArgs {
 
 // ======== for piscem
 
+/// This struct holds a [`piscem`](https://github.com/COMBINE-lab/piscem) compatible
+/// description of the fragment geometry specification.
 #[derive(Debug, Eq, PartialEq)]
 pub struct PiscemGeomDesc {
+    /// The `piscem` format specification for read 1.
     pub read1_desc: String,
+    /// The `piscem` format specification for read 2.
     pub read2_desc: String,
 }
 
 impl AppendToCmdArgs for PiscemGeomDesc {
+    /// Adds this `piscem` format geometry specification to the command
+    /// given by `cmd`.
     fn append(&self, cmd: &mut std::process::Command) {
         let geo_desc = format!("1{}2{}", self.read1_desc, self.read2_desc);
         cmd.args(["--geometry", geo_desc.as_str()]);
@@ -268,6 +289,9 @@ fn as_piscem_geom_desc_single_read(geom_pieces: &[GeomPiece]) -> String {
 }
 
 impl PiscemGeomDesc {
+    /// This constructor builds the `piscem` format descriptor for this fragment
+    /// library from a slice of the constituent `GeomPiece`s for read 1 (`geom_pieces_r1`)
+    /// and a slice of the `GeomPiece`s for read 2 (`geom_pieces_r2`).
     pub fn from_geom_pieces(geom_pieces_r1: &[GeomPiece], geom_pieces_r2: &[GeomPiece]) -> Self {
         let read1_desc = as_piscem_geom_desc_single_read(geom_pieces_r1);
         let read2_desc = as_piscem_geom_desc_single_read(geom_pieces_r2);
@@ -280,6 +304,8 @@ impl PiscemGeomDesc {
 
 // ======== for salmon
 
+/// This struct holds a [`salmon`](https://github.com/COMBINE-lab/salmon) compatible
+/// description of the fragment geometry specification.
 #[derive(Debug, Eq, PartialEq)]
 pub struct SalmonSeparateGeomDesc {
     pub barcode_desc: String,
@@ -288,6 +314,8 @@ pub struct SalmonSeparateGeomDesc {
 }
 
 impl AppendToCmdArgs for SalmonSeparateGeomDesc {
+    /// Given the `salmon` compatible geometry description, append this description
+    /// to the command `cmd`, assumed to be an invocation of `salmon alevin`.
     fn append(&self, cmd: &mut std::process::Command) {
         cmd.args([
             "--read-geometry",
@@ -456,9 +484,13 @@ impl SalmonSeparateGeomDesc {
     }
 }
 
+/// This structure holds our representation of the parsed fragment
+/// geometry description.
 #[derive(Debug)]
 pub struct FragmentGeomDesc {
+    /// The sequence of `GeomPiece`s describing read 1 of this fragment in left-to-right order.
     pub read1_desc: Vec<GeomPiece>,
+    /// The sequence of `GeomPiece`s describing read 2 of this fragment in left-to-right order.
     pub read2_desc: Vec<GeomPiece>,
 }
 
@@ -495,66 +527,79 @@ impl FragmentGeomDesc {
         false
     }
 
-    /// A "complex" geometry is one that contains only fixed length pieces
+    /// A "simple" geometry is one that contains only fixed length pieces
     /// (but doesn't include any fixed seq segments) and unbounded pieces.
     pub fn is_simple_geometry(&self) -> bool {
         !self.is_complex_geometry()
     }
 }
 
+/// Parse the description of a single read.  It's expected that this function is called
+/// when the enclosing rule matches a rule description.  In that case, this function is
+/// called with the `into_inner` of that Pair.  This function returns a vector containing
+/// the parsed geometry of the input description.
+fn parse_read_description(read_desc: pest::iterators::Pairs<Rule>) -> Vec<GeomPiece> {
+    let mut read_geom = Vec::<GeomPiece>::new();
+    for rd in read_desc {
+        match rd.as_rule() {
+            Rule::read_desc => {
+                for geom_piece in rd.into_inner() {
+                    read_geom.push(parse_segment(geom_piece));
+                }
+            }
+            _ => unreachable!(),
+        };
+    }
+    read_geom
+}
+
 impl<'a> TryFrom<&'a str> for FragmentGeomDesc {
     type Error = anyhow::Error;
 
+    /// This is the main entry point to obtain a `FragmentGeomDesc` structure.
+    /// This function parses the FGDL description string provided as `arg`, and
+    /// returns either `Ok(FragGeomDesc)`, if the parse is succesful or an
+    /// `anyhow::Error` if the parsing fails.
+    ///
+    /// Currently, the FGDL makes a structural assumption that is reflected in the
+    /// way this function works.  The description string will describe the fragment
+    /// geometry for a fragment consisting of a pair of reads (i.e. currently
+    /// there is no support for single-end reads or fragments containing > 2 reads).
     fn try_from(arg: &'a str) -> Result<Self, Self::Error> {
         match FragGeomParser::parse(Rule::frag_desc, arg) {
             Ok(fragment_desc) => {
-                //println!("{:#?}", parse);
-
-                let mut read1_desc = Vec::<GeomPiece>::new();
-                let mut read2_desc = Vec::<GeomPiece>::new();
+                // Where we'll hold the `GeomPiece`s that constitute the
+                // parse of each read.
+                let mut r1_desc = None;
+                let mut r2_desc = None;
 
                 // Because ident_list is silent, the iterator will contain idents
                 for read_desc in fragment_desc {
-                    // A pair is a combination of the rule which matched and a span of input
-                    /*
-                    println!("Rule:    {:?}", read_desc.as_rule());
-                    println!("Span:    {:?}", read_desc.as_span());
-                    println!("Text:    {}", read_desc.as_str());
-                    */
-
-                    let read_num = match read_desc.as_rule() {
-                        Rule::read_1_desc => 1,
-                        Rule::read_2_desc => 2,
-                        _ => 0,
+                    match read_desc.as_rule() {
+                        Rule::read_1_desc => {
+                            let rd = read_desc.into_inner();
+                            r1_desc = Some(parse_read_description(rd));
+                        }
+                        Rule::read_2_desc => {
+                            let rd = read_desc.into_inner();
+                            r2_desc = Some(parse_read_description(rd));
+                        }
+                        Rule::EOI => {}
+                        e => {
+                            dbg!("{:?}", e);
+                            bail!("Expected to parse a description for read 1, or 2, but didn't find the corresponding rule!")
+                        }
                     };
-                    // at the top-level we have a
-                    // a read 1 desc followed by a read 2 desc
-                    for rd in read_desc.into_inner() {
-                        match rd.as_rule() {
-                            Rule::read_desc => {
-                                for geom_piece in rd.into_inner() {
-                                    match read_num {
-                                        1 => {
-                                            read1_desc.push(parse_segment(geom_piece));
-                                        }
-                                        2 => {
-                                            read2_desc.push(parse_segment(geom_piece));
-                                        }
-                                        _ => {
-                                            println!("cannot add geom piece to read {}", read_num);
-                                        }
-                                    }
-                                }
-                            }
-                            _ => unreachable!(),
-                        };
-                    }
                 }
 
-                Ok(FragmentGeomDesc {
-                    read1_desc,
-                    read2_desc,
-                })
+                if let (Some(read1_desc), Some(read2_desc)) = (r1_desc, r2_desc) {
+                    Ok(FragmentGeomDesc {
+                        read1_desc,
+                        read2_desc,
+                    })
+                } else {
+                    bail!("Was not able to obtain a succesful parse for both read 1 and read 2.")
+                }
             }
             Err(e) => Err(anyhow!(
                 "Could not succesfully parse geometry description {}.\nParse Error : {:#?}",
