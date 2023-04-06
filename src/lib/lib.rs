@@ -214,10 +214,15 @@ fn parse_fixed_segment(r: pest::iterators::Pair<Rule>) -> GeomPiece {
             let gl = parse_fixed_len(&mut r.into_inner());
             GeomPiece::ReadSeq(gl)
         }
+        // this should no longer be possible 
+        // under the new grammar (i.e. a fixed_seq_segment
+        // is not a type of fixed_segment).
+        /*
         Rule::fixed_seq_segment => {
             let fseq = parse_fixed_seq(&mut r.into_inner());
             GeomPiece::Fixed(fseq)
         }
+        */
         _ => unimplemented!(),
     }
 }

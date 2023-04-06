@@ -32,6 +32,23 @@ fn test_parse_format_complex() {
     };
 }
 
+/// Parsing a complex format with unbounded sequence before an anchor 
+/// (10x crispr feature barcoding) should work.
+/// We check this by ensuring that the format description makes the
+/// round trip through parsing and back through printing.
+#[test]
+fn test_parse_format_complex_crispr() {
+    let arg = "1{b[16]u[12]}2{x:r[20]f[GTTTAAGAGCTAAGCTGGAA]x:}";
+    match FragmentGeomDesc::try_from(arg) {
+        Ok(frag_desc) => {
+            assert_eq!(arg, format!("{}", frag_desc));
+        }
+        Err(e) => {
+            panic!("Failed to parse geometry {}", e);
+        }
+    };
+}
+
 /// Parsing a simple format into a `PiscemGeomDesc` should work.
 /// We check this by ensuring that the format description makes the
 /// round trip through parsing and back through printing.
