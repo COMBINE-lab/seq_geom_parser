@@ -40,5 +40,5 @@ path = "src/bin.rs"
 
 [dependencies]
 anyhow = "1.0.70"
-pest = "2.5.6"
-pest_derive = "2.5.6"
+pest = "2.5.7"
+pest_derive = "2.5.7"
