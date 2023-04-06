@@ -32,7 +32,7 @@ fn test_parse_format_complex() {
     };
 }
 
-/// Parsing a complex format with unbounded sequence before an anchor 
+/// Parsing a complex format with unbounded sequence before an anchor
 /// (10x crispr feature barcoding) should work.
 /// We check this by ensuring that the format description makes the
 /// round trip through parsing and back through printing.
