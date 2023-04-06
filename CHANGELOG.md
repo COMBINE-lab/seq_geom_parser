@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.3.0](https://github.com/COMBINE-lab/seq_geom_parser/compare/v0.2.1...v0.3.0) (2023-04-06)
+
+
+### Features
+
+* update grammar ([01d1673](https://github.com/COMBINE-lab/seq_geom_parser/commit/01d167332bbb0fbb9fb4975a62e7234e3077d5fd))
+
 ## [0.2.1](https://github.com/COMBINE-lab/seq_geom_parser/compare/v0.2.0...v0.2.1) (2023-03-19)
 
 
