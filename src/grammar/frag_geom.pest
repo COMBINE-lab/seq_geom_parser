@@ -28,7 +28,7 @@ unbounded_read_segment    = { "r" ~ usep }
 unbounded_discard_segment = { "x" ~ usep }
 
 fixed_segment = {
-    (fixed_umi_segment | fixed_read_segment | fixed_barcode_segment | fixed_seq_segment | fixed_discard_segment)
+    (fixed_umi_segment | fixed_read_segment | fixed_barcode_segment | fixed_discard_segment)
 }
 
 ranged_segment = {
@@ -36,7 +36,7 @@ ranged_segment = {
 }
 
 bounded_segment = _{
-    (fixed_segment | (ranged_segment ~ fixed_seq_segment) | (unbounded_segment ~ fixed_seq_segment))
+    (fixed_segment | fixed_seq_segment | (ranged_segment ~ fixed_segment* ~ fixed_seq_segment) | (unbounded_segment ~ fixed_segment* ~ fixed_seq_segment))
 }
 
 unbounded_segment = {
@@ -46,6 +46,9 @@ unbounded_segment = {
 read_desc = {
     dopen ~ ((bounded_segment)+ ~ (ranged_segment | unbounded_segment)? | unbounded_segment | ranged_segment) ~ dclose
 }
+
 read_1_desc = { "1" ~ read_desc }
+
 read_2_desc = { "2" ~ read_desc }
-frag_desc = _{ SOI ~ read_1_desc ~ read_2_desc ~ EOI}
+
+frag_desc = _{ SOI ~ read_1_desc ~ read_2_desc ~ EOI }
